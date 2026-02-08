@@ -25,7 +25,8 @@ app.get('/', (req, res) => {
 });
 
 // 4. Handle Unhandled Routes (404)
-app.all('*', (req, res, next) => {
+// FIXED: specific wildcard matching for newer Express versions
+app.all(/(.*)/, (req, res, next) => {
     next(new ApiError(404, `Can't find ${req.originalUrl} on this server!`));
 });
 
