@@ -6,33 +6,81 @@ Built with **Node.js**, **Express**, and **MongoDB**.
 
 ---
 
+## 🔗 Live API Deployment
+
+**URL:** [https://ecommerceapi-pg15.onrender.com](https://ecommerceapi-pg15.onrender.com) 
+
+---
+
 ## 📌 Project Overview
 
 This system is designed to handle high-concurrency e-commerce operations with a focus on **data consistency** and **fraud prevention**.
 
 ### Key Features
+
 * **🔐 Authentication & Authorization:**
-    * JWT-based secure authentication.
-    * **RBAC (Role-Based Access Control):** distinct permissions for `Admin` and `Customer`.
+* JWT-based secure authentication.
+
+
+* 
+**RBAC (Role-Based Access Control):** distinct permissions for `Admin` and `Customer`.
+
+
+
+
 * **📦 Product Management:**
-    * Admin-only CRUD operations.
-    * **Soft Delete:** Products are marked as deleted rather than removed to preserve historical order data.
+* Admin-only CRUD operations for products.
+
+
+* **Soft Delete:** Products are flagged as deleted rather than removed to preserve historical order data.
+
+
 * **🛍️ Cart & Orders:**
-    * Persistent database-backed shopping cart.
-    * **Atomic Order Placement:** Uses **MongoDB Transactions (ACID)** to ensure stock is only deducted if the order is successfully created.
+* Persistent database-backed shopping cart.
+
+
+* 
+**Atomic Order Placement:** Uses **MongoDB Transactions (ACID)** to ensure stock is only deducted after successful order creation.
+
+
+
+
 * **🛡️ Fraud Prevention (Bonus):**
-    * **Anti-Stock-Hoarding:** Implements a throttling mechanism. Users who cancel orders repeatedly (>3 times/hour) are automatically flagged and blocked to prevent stock manipulation.
-    * **Negative Inventory Protection:** Strict validation ensures stock never drops below zero.
+* 
+**Anti-Stock-Hoarding:** Implements a throttling mechanism. Users who cancel orders repeatedly (>3 times) are automatically flagged and blocked to prevent stock manipulation.
+
+
+* 
+**Negative Inventory Protection:** Strict validation ensures stock never drops below zero.
+
+
+
+
 
 ---
 
 ## 🛠️ Tech Stack
 
-* **Runtime:** Node.js
-* **Framework:** Express.js
-* **Database:** MongoDB (Mongoose ODM)
-* **Authentication:** JSON Web Tokens (JWT) & Bcrypt
-* **Validation:** Express-Validator
+* 
+**Runtime:** Node.js 
+
+
+* 
+**Framework:** Express.js 
+
+
+* 
+**Database:** MongoDB (Mongoose ODM) 
+
+
+* 
+**Authentication:** JSON Web Tokens (JWT) & Bcrypt 
+
+
+* 
+**Validation:** Express-Validator 
+
+
 
 ---
 
@@ -102,18 +150,30 @@ erDiagram
 ## 🧠 Key Architectural Decisions
 
 1. **Atomic Transactions (ACID):**
-* **Problem:** If a server crashes after creating an order but before deducting stock, inventory becomes inaccurate.
-* **Solution:** We use `mongoose.startSession()` to wrap the *Order Creation*, *Stock Deduction*, and *Cart Clearing* into a single atomic transaction. If one fails, all roll back.
+* 
+**Problem:** If a server crashes after creating an order but before deducting stock, inventory becomes inaccurate. 
+
+
+* 
+**Solution:** We use `mongoose.startSession()` to wrap the *Order Creation*, *Stock Deduction*, and *Cart Clearing* into a single atomic transaction. 
+
+
 
 
 2. **Data Snapshots in Orders:**
-* **Problem:** If a product price changes next month, old order history should not reflect the new price.
-* **Solution:** When an order is created, we snapshot the `price` and `name` of the product into the `OrderItems` array. This preserves the "receipt" integrity.
+* **Problem:** If a product price changes later, old order history should not reflect the new price.
+* 
+**Solution:** When an order is created, we snapshot the `price` and `name` of the product into the `OrderItems` array. 
+
+
 
 
 3. **Cancellation Throttling (Fraud Logic):**
-* **Problem:** Malicious users can place orders to reserve stock and then cancel them repeatedly to deny stock to others.
-* **Solution:** The user model tracks `cancellationCount`. Exceeding 3 cancellations triggers an automatic `isBlocked` flag, preventing further logins.
+* 
+**Problem:** Malicious users can reserve stock via orders and cancel them repeatedly to deny stock to others. 
+
+
+* **Solution:** The user model tracks `cancellationCount`. Exceeding 3 cancellations triggers an automatic `isBlocked` flag.
 
 
 
@@ -121,9 +181,18 @@ erDiagram
 
 ## 📝 Assumptions Made
 
-1. **Stock Reservation:** Stock is **not** reserved when added to the Cart. It is only checked for availability. Real reservation/deduction happens strictly at the **Order Placement** stage to prevent "dead stock" sitting in abandoned carts.
-2. **Currency:** All prices are treated as integers/floats in a single currency unit (e.g., USD) for simplicity.
-3. **Deletion:** "Deleting" a product performs a **Soft Delete** (`isDeleted: true`). This ensures that historical orders referencing that product do not break.
+1. 
+**Stock Reservation:** Stock is **not** reserved when added to the Cart. Real deduction happens strictly at the **Order Placement** stage.
+
+
+2. 
+**Currency:** All prices are treated as integers/floats in a single currency unit for simplicity.
+
+
+3. 
+**Deletion:** "Deleting" a product performs a **Soft Delete** to ensure that historical orders referencing that product remain valid.
+
+
 
 ---
 
@@ -140,7 +209,7 @@ Follow these steps to set up the project locally.
 
 1. **Clone the repository:**
 ```bash
-git clone [https://github.com/smri29/Mini-E-Commerce-API.git](https://github.com/smri29/Mini-E-Commerce-API.git)
+git clone https://github.com/smri29/Mini-E-Commerce-API.git
 cd Mini-E-Commerce-API
 
 ```
@@ -154,7 +223,7 @@ npm install
 
 
 3. **Environment Configuration:**
-Create a `.env` file in the root directory and add the following variables:
+Create a `.env` file in the root directory and add:
 ```env
 PORT=5000
 MONGO_URI=your_mongodb_connection_string
@@ -166,7 +235,7 @@ NODE_ENV=development
 
 4. **Run the server:**
 ```bash
-# Development mode (with auto-restart)
+# Development mode
 npm run dev
 
 # Production mode
@@ -180,37 +249,68 @@ npm start
 
 ## 📖 API Documentation
 
-### **Authentication**
+### **Postman Collection**
 
-* `POST /api/auth/register` - Register a new user (Admin/Customer).
-* `POST /api/auth/login` - Login and receive a JWT token.
+A pre-configured Postman collection is available for testing in the `docs/` folder.
 
-### **Products**
+* **File:** `docs/postman/Mini-Ecommerce-API.postman_collection.json`
+
+**Endpoints** 
+
+#### **Authentication**
+
+* 
+`POST /api/auth/register` - Register a new user.
+
+
+* 
+`POST /api/auth/login` - Login and receive JWT.
+
+
+
+#### **Products**
 
 * `GET /api/products` - List all products.
-* `GET /api/products/:id` - Get single product details.
-* `POST /api/products` - Add a new product (**Admin only**).
-* `PUT /api/products/:id` - Update product details (**Admin only**).
-* `DELETE /api/products/:id` - Soft delete a product (**Admin only**).
+* 
+`POST /api/products` - Add new product (**Admin only**).
 
-### **Cart**
+
+* 
+`PUT /api/products/:id` - Update product (**Admin only**).
+
+
+* 
+`DELETE /api/products/:id` - Delete product (**Admin only**).
+
+
+
+#### **Cart**
 
 * `GET /api/cart` - View user's cart.
-* `POST /api/cart` - Add item to cart (Checks stock availability).
-* `DELETE /api/cart/:itemId` - Remove item from cart.
+* 
+`POST /api/cart` - Add item to cart.
 
-### **Orders**
 
-* `POST /api/orders` - Place an order (**Transactional**).
+* 
+`DELETE /api/cart/:itemId` - Remove item from cart.
+
+
+
+#### **Orders**
+
+* 
+`POST /api/orders` - Place an order (**Transactional**).
+
+
 * `GET /api/orders` - View order history.
-* `PUT /api/orders/:id/cancel` - Cancel an order (Triggers fraud check).
-* `PUT /api/orders/:id/status` - Update order status (**Admin only**).
+* 
+`PUT /api/orders/:id/cancel` - Cancel order.
+
+
 
 ---
 
 ## 🧪 Testing
-
-To run the test suite (if applicable):
 
 ```bash
 npm test
@@ -219,6 +319,6 @@ npm test
 
 ## 📜 License
 
-This project is open-source and available under the [MIT License](https://www.google.com/search?q=LICENSE).
+This project is open-source and available under the [MIT License](https://opensource.org/licenses/MIT).
 
-```
+---
