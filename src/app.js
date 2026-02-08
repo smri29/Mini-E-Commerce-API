@@ -13,8 +13,8 @@ app.use(cors()); // Enable CORS
 app.use(express.json()); // Parse JSON bodies
 app.use(morgan('dev')); // Logger
 
-// 2. Routes (We will import these properly in the next steps)
-// app.use('/api/auth', require('./routes/authRoutes'));
+// 2. Routes
+app.use('/api/auth', require('./routes/authRoutes'));
 // app.use('/api/products', require('./routes/productRoutes'));
 // app.use('/api/cart', require('./routes/cartRoutes'));
 // app.use('/api/orders', require('./routes/orderRoutes'));
@@ -25,7 +25,6 @@ app.get('/', (req, res) => {
 });
 
 // 4. Handle Unhandled Routes (404)
-// FIXED: specific wildcard matching for newer Express versions
 app.all(/(.*)/, (req, res, next) => {
     next(new ApiError(404, `Can't find ${req.originalUrl} on this server!`));
 });
