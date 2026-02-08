@@ -34,9 +34,9 @@ const productSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 // Middleware: Exclude soft-deleted products from find queries
-productSchema.pre(/^find/, function(next) {
+// FIXED: Changed to async and removed 'next' to fix Mongoose compatibility error
+productSchema.pre(/^find/, async function() {
     this.find({ isDeleted: { $ne: true } });
-    next();
 });
 
 module.exports = mongoose.model('Product', productSchema);
