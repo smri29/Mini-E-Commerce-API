@@ -1,8 +1,10 @@
-# Mini E-Commerce API
+# Mini E-Commerce API 🚀
 
-A robust, RESTful backend API for a mini e-commerce platform. This project simulates core online shopping features including authentication, product management, cart operations, and secure order processing.
+A robust, RESTful backend API for a mini e-commerce platform. This project simulates core online shopping features including authentication, role-based access control, product management, cart operations, and secure order processing.
 
 Built with **Node.js**, **Express**, and **MongoDB**.
+
+---
 
 ## 📌 Project Overview
 
@@ -11,16 +13,16 @@ This system is designed to handle high-concurrency e-commerce operations with a 
 ### Key Features
 * **🔐 Authentication & Authorization:**
     * JWT-based secure authentication.
-    * Role-Based Access Control (RBAC) for `Admin` and `Customer`.
+    * **RBAC (Role-Based Access Control):** distinct permissions for `Admin` and `Customer`.
 * **📦 Product Management:**
-    * Admin-only CRUD operations for products.
-    * Real-time stock management.
+    * Admin-only CRUD operations.
+    * **Soft Delete:** Products are marked as deleted rather than removed to preserve historical order data.
 * **🛍️ Cart & Orders:**
-    * Persistent shopping cart stored in the database.
-    * **Atomic Order Placement:** Uses MongoDB Transactions (ACID) to ensure stock is only deducted if the order is successfully created.
-* **🛡️ Fraud Prevention:**
-    * **Anti-Stock-Hoarding:** Implements throttling to prevent malicious users from repeatedly reserving stock via cancellations.
-    * **Negative Inventory Protection:** Strict validation to ensure stock never drops below zero.
+    * Persistent database-backed shopping cart.
+    * **Atomic Order Placement:** Uses **MongoDB Transactions (ACID)** to ensure stock is only deducted if the order is successfully created.
+* **🛡️ Fraud Prevention (Bonus):**
+    * **Anti-Stock-Hoarding:** Implements a throttling mechanism. Users who cancel orders repeatedly (>3 times/hour) are automatically flagged and blocked to prevent stock manipulation.
+    * **Negative Inventory Protection:** Strict validation ensures stock never drops below zero.
 
 ---
 
@@ -53,6 +55,78 @@ src/
 
 ---
 
+## 🏗️ Database Schema (ER Diagram)
+
+The application uses a normalized NoSQL structure with the following relationships:
+
+```mermaid
+erDiagram
+    USER ||--o{ ORDER : places
+    USER ||--|| CART : has
+    CART ||--|{ PRODUCT : contains
+    ORDER ||--|{ ORDER_ITEM : contains
+
+    USER {
+        ObjectId _id
+        String email
+        String role "admin/customer"
+        Number cancellationCount
+        Boolean isBlocked
+    }
+
+    PRODUCT {
+        ObjectId _id
+        String title
+        Number price
+        Number stock
+        Boolean isDeleted
+    }
+
+    CART {
+        ObjectId userId
+        Array items "productId, quantity"
+        Number totalPrice
+    }
+
+    ORDER {
+        ObjectId userId
+        Array items "Snapshot of Product Data"
+        String status "Pending/Shipped/Delivered/Cancelled"
+        String paymentStatus
+    }
+
+```
+
+---
+
+## 🧠 Key Architectural Decisions
+
+1. **Atomic Transactions (ACID):**
+* **Problem:** If a server crashes after creating an order but before deducting stock, inventory becomes inaccurate.
+* **Solution:** We use `mongoose.startSession()` to wrap the *Order Creation*, *Stock Deduction*, and *Cart Clearing* into a single atomic transaction. If one fails, all roll back.
+
+
+2. **Data Snapshots in Orders:**
+* **Problem:** If a product price changes next month, old order history should not reflect the new price.
+* **Solution:** When an order is created, we snapshot the `price` and `name` of the product into the `OrderItems` array. This preserves the "receipt" integrity.
+
+
+3. **Cancellation Throttling (Fraud Logic):**
+* **Problem:** Malicious users can place orders to reserve stock and then cancel them repeatedly to deny stock to others.
+* **Solution:** The user model tracks `cancellationCount`. Exceeding 3 cancellations triggers an automatic `isBlocked` flag, preventing further logins.
+
+
+
+---
+
+## 📝 Assumptions Made
+
+1. **Stock Reservation:** Stock is **not** reserved when added to the Cart. It is only checked for availability. Real reservation/deduction happens strictly at the **Order Placement** stage to prevent "dead stock" sitting in abandoned carts.
+2. **Currency:** All prices are treated as integers/floats in a single currency unit (e.g., USD) for simplicity.
+3. **Deletion:** "Deleting" a product performs a **Soft Delete** (`isDeleted: true`). This ensures that historical orders referencing that product do not break.
+
+---
+
 ## 🚀 Getting Started
 
 Follow these steps to set up the project locally.
@@ -66,8 +140,8 @@ Follow these steps to set up the project locally.
 
 1. **Clone the repository:**
 ```bash
-git clone [https://github.com/your-username/mini-ecommerce-api.git](https://github.com/your-username/mini-ecommerce-api.git)
-cd mini-ecommerce-api
+git clone [https://github.com/smri29/Mini-E-Commerce-API.git](https://github.com/smri29/Mini-E-Commerce-API.git)
+cd Mini-E-Commerce-API
 
 ```
 
@@ -83,7 +157,7 @@ npm install
 Create a `.env` file in the root directory and add the following variables:
 ```env
 PORT=5000
-MONGO_URI=mongodb://localhost:27017/mini-ecommerce
+MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_super_secret_key_123
 NODE_ENV=development
 
@@ -114,21 +188,23 @@ npm start
 ### **Products**
 
 * `GET /api/products` - List all products.
-* `POST /api/products` - Add a new product (Admin only).
-* `PUT /api/products/:id` - Update product details (Admin only).
-* `DELETE /api/products/:id` - Remove a product (Admin only).
+* `GET /api/products/:id` - Get single product details.
+* `POST /api/products` - Add a new product (**Admin only**).
+* `PUT /api/products/:id` - Update product details (**Admin only**).
+* `DELETE /api/products/:id` - Soft delete a product (**Admin only**).
 
 ### **Cart**
 
 * `GET /api/cart` - View user's cart.
-* `POST /api/cart` - Add item to cart.
+* `POST /api/cart` - Add item to cart (Checks stock availability).
 * `DELETE /api/cart/:itemId` - Remove item from cart.
 
 ### **Orders**
 
-* `POST /api/orders` - Place an order (Atomic Transaction).
+* `POST /api/orders` - Place an order (**Transactional**).
 * `GET /api/orders` - View order history.
-* `PUT /api/orders/:id/cancel` - Cancel an order.
+* `PUT /api/orders/:id/cancel` - Cancel an order (Triggers fraud check).
+* `PUT /api/orders/:id/status` - Update order status (**Admin only**).
 
 ---
 
@@ -144,3 +220,5 @@ npm test
 ## 📜 License
 
 This project is open-source and available under the [MIT License](https://www.google.com/search?q=LICENSE).
+
+```
