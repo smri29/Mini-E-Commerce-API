@@ -18,7 +18,7 @@ Quick check:
 
 ```bash
 curl -s https://ecommerceapi-pg15.onrender.com/api/products
-
+```
 
 ---
 
@@ -311,7 +311,3 @@ Manual testing notes:
 ## License
 
 MIT
-
-```
-::contentReference[oaicite:0]{index=0}
-```
