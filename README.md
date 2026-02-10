@@ -1,7 +1,6 @@
-```md
 # Mini E-Commerce API 🚀
 
-A production-style REST API for a mini e-commerce platform. It covers the core backend workflows of an online shop: authentication, role-based access control, product management, cart operations, and transactional order processing with stock safety.
+A production-style REST API for a mini e-commerce platform. It covers core backend workflows: authentication, role-based access control, product management, cart operations, and transactional order processing with stock safety.
 
 Built with **Node.js**, **Express**, and **MongoDB (Mongoose)**.
 
@@ -9,15 +8,14 @@ Built with **Node.js**, **Express**, and **MongoDB (Mongoose)**.
 
 ## Live API Deployment
 
-- **Base URL (deployed):** https://ecommerceapi-pg15.onrender.com  
+- **Base URL (deployed):** https://ecommerceapi-pg15.onrender.com
 - **API Prefix:** `/api`
 
 Quick check:
-```bash
-curl https://ecommerceapi-pg15.onrender.com/api/products
-````
 
----
+```bash
+curl -s https://ecommerceapi-pg15.onrender.com/api/products
+
 
 ## What This Project Includes
 
