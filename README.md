@@ -1,4 +1,4 @@
-````md
+```md
 # Mini E-Commerce API 🚀
 
 A production-style REST API for a mini e-commerce platform. It covers the core backend workflows of an online shop: authentication, role-based access control, product management, cart operations, and transactional order processing with stock safety.
