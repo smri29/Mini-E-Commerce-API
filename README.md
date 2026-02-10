@@ -11,6 +11,7 @@ Built with **Node.js**, **Express**, and **MongoDB (Mongoose)**.
 - **Base URL (deployed):** https://ecommerceapi-pg15.onrender.com
 - **API Prefix:** `/api`
 
+````md
 Quick check:
 
 ```bash
@@ -56,8 +57,6 @@ Example:
 
 ```bash
 curl "http://localhost:5000/api/products?q=laptop&category=Tech&minPrice=100&maxPrice=2000&page=1&limit=20&sort=-price"
-```
-
 ```
 
 **Cart**
