@@ -1,4 +1,3 @@
-````md
 # Mini E-Commerce API 🚀
 
 A production-style REST API for a mini e-commerce platform. It covers core backend workflows: authentication, role-based access control, product management, cart operations, and transactional order processing with stock safety.
@@ -19,7 +18,7 @@ Quick check:
 
 ```bash
 curl -s https://ecommerceapi-pg15.onrender.com/api/products
-````
+
 
 ---
 
