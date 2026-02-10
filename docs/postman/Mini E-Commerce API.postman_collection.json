@@ -1,510 +1,504 @@
 {
   "info": {
     "_postman_id": "d44ce9d2-2693-4bb4-a259-1c446cd0ab8d",
-    "name": "Mini E-Commerce API",
+    "name": "Mini E-Commerce API (Updated)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "38537181"
   },
   "item": [
     {
-      "name": "Auth",
+      "name": "00 - Health",
       "item": [
         {
-          "name": "Register Admin",
+          "name": "Health Check",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "",
-                "value": "",
-                "type": "text",
-                "disabled": true
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n  \"name\": \"Admin User\",\r\n  \"email\": \"admin@example.com\",\r\n  \"password\": \"password123\",\r\n  \"role\": \"admin\"\r\n}\r\n",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/register",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "register"
-              ]
-            }
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/"
           },
-          "response": []
-        },
-        {
-          "name": "Register User",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "",
-                "value": "",
-                "type": "text",
-                "disabled": true
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Health check returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ]
               }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n    \"name\": \"John Doe\",\r\n    \"email\": \"john@example.com\",\r\n    \"password\": \"password123\",\r\n    \"role\": \"customer\"\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/register",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "register"
-              ]
             }
-          },
-          "response": []
-        },
-        {
-          "name": "Admin Login",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n    \"email\": \"admin@example.com\",\r\n    \"password\": \"password123\"\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "User Login",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\"email\": \"john@example.com\",\r\n\"password\": \"password123\"\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/auth/login",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "auth",
-                "login"
-              ]
-            }
-          },
+          ],
           "response": []
         }
       ]
     },
     {
-      "name": "Products",
+      "name": "01 - Auth",
       "item": [
         {
-          "name": "Create Product",
+          "name": "Register Admin (Protected)",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
+            "auth": { "type": "noauth" },
             "method": "POST",
             "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
               {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
+                "key": "x-admin-signup-key",
+                "value": "{{adminSignupKey}}",
+                "type": "text",
+                "description": "Required if your server enables admin signup via ADMIN_SIGNUP_KEY"
               }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"title\": \"Laptop\",\r\n    \"description\": \"High end\",\r\n    \"price\": 1200,\r\n    \"stock\": 5,\r\n    \"category\": \"Tech\"\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"admin\"\n}\n",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/products",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "products"
-              ]
-            }
+            "url": "{{baseUrl}}/auth/register",
+            "description": "Registers an admin account. This is protected: you must set {{adminSignupKey}} (x-admin-signup-key) to match ADMIN_SIGNUP_KEY on the server.\n\nIf admin signup is disabled on the server, create admin directly in DB or enable ADMIN_SIGNUP_KEY."
           },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json;",
+                  "try { json = pm.response.json(); } catch (e) { json = null; }",
+                  "",
+                  "pm.test('Register Admin returns 201 or 403 if key missing/disabled', function () {",
+                  "  pm.expect([201, 400, 403]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (json && json.token) {",
+                  "  pm.collectionVariables.set('token_admin', json.token);",
+                  "}",
+                  "if (json && json.data && json.data.user && json.data.user.email) {",
+                  "  pm.collectionVariables.set('adminEmail', json.data.user.email);",
+                  "}"
+                ]
+              }
+            }
+          ],
           "response": []
         },
         {
-          "name": "Get All Products",
+          "name": "Register User (Customer)",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "GET",
+            "auth": { "type": "noauth" },
+            "method": "POST",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/products",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "products"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Get Single Product",
-          "protocolProfileBehavior": {
-            "disableBodyPruning": true
-          },
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}\n",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/products/6988b208362c8e749e7739fd",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "products",
-                "6988b208362c8e749e7739fd"
-              ]
+            "url": "{{baseUrl}}/auth/register",
+            "description": "Registers a customer (default role: customer)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json;",
+                  "try { json = pm.response.json(); } catch (e) { json = null; }",
+                  "",
+                  "pm.test('Register User returns 201 or 400 if already exists', function () {",
+                  "  pm.expect([201, 400]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (json && json.token) {",
+                  "  pm.collectionVariables.set('token_user', json.token);",
+                  "}",
+                  "if (json && json.data && json.data.user && json.data.user.email) {",
+                  "  pm.collectionVariables.set('userEmail', json.data.user.email);",
+                  "}"
+                ]
+              }
             }
+          ],
+          "response": []
+        },
+        {
+          "name": "Admin Login (sets token_admin)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"password123\"\n}\n",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Logs in as admin. Stores JWT in {{token_admin}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json;",
+                  "try { json = pm.response.json(); } catch (e) { json = null; }",
+                  "",
+                  "pm.test('Admin login returns 200 or 401/403', function () {",
+                  "  pm.expect([200, 401, 403, 400]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (json && json.token) {",
+                  "  pm.collectionVariables.set('token_admin', json.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "User Login (sets token_user)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"password123\"\n}\n",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Logs in as customer. Stores JWT in {{token_user}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json;",
+                  "try { json = pm.response.json(); } catch (e) { json = null; }",
+                  "",
+                  "pm.test('User login returns 200 or 401/403', function () {",
+                  "  pm.expect([200, 401, 403, 400]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (json && json.token) {",
+                  "  pm.collectionVariables.set('token_user', json.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "02 - Products",
+      "item": [
+        {
+          "name": "Create Product (Admin) (sets productId)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Authorization", "value": "Bearer {{token_admin}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Laptop\",\n  \"description\": \"High end laptop\",\n  \"price\": 1200,\n  \"stock\": 5,\n  \"category\": \"Tech\"\n}\n",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/products",
+            "description": "Admin-only. Creates a product and stores returned _id into {{productId}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json;",
+                  "try { json = pm.response.json(); } catch (e) { json = null; }",
+                  "",
+                  "pm.test('Create product returns 201 or 401/403', function () {",
+                  "  pm.expect([201, 401, 403, 400]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (json && json.data && json.data.product && json.data.product._id) {",
+                  "  pm.collectionVariables.set('productId', json.data.product._id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get All Products (Public)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/products",
+            "description": "Public. Lists all non-deleted products."
           },
           "response": []
         },
         {
-          "name": "Delete Product",
+          "name": "Get Products (Filtered/Search/Paginated) (Public)",
           "request": {
-            "auth": {
-              "type": "noauth"
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/products?q=laptop&category=Tech&minPrice=100&maxPrice=5000&page=1&limit=20&sort=-price",
+            "description": "Public. Demonstrates query params:\n- q (search in title)\n- category\n- minPrice/maxPrice\n- page/limit\n- sort (e.g. -price, price, -createdAt)"
+          },
+          "response": []
+        },
+        {
+          "name": "Get Single Product (Public)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/products/{{productId}}",
+            "description": "Public. Gets one product by ID."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Product (Admin)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Authorization", "value": "Bearer {{token_admin}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 1100,\n  \"stock\": 10\n}\n",
+              "options": { "raw": { "language": "json" } }
             },
+            "url": "{{baseUrl}}/products/{{productId}}",
+            "description": "Admin-only. Updates allowed fields: title, description, price, stock, category."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Product (Soft Delete) (Admin)",
+          "request": {
+            "auth": { "type": "noauth" },
             "method": "DELETE",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
+              { "key": "Authorization", "value": "Bearer {{token_admin}}", "type": "text" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{ \"confirm\": true }",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/products/6988d91f28c5117b56d30dd1",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "products",
-                "6988d91f28c5117b56d30dd1"
-              ]
-            }
+            "url": "{{baseUrl}}/products/{{productId}}",
+            "description": "Admin-only. Soft deletes a product (isDeleted=true). Deleted products are excluded from find queries."
           },
           "response": []
         }
       ]
     },
     {
-      "name": "Orders",
+      "name": "03 - Cart",
       "item": [
         {
-          "name": "Place Order",
+          "name": "Get My Cart (Customer)",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "POST",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/orders",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "orders"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "My Order History",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
+            "auth": { "type": "noauth" },
             "method": "GET",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              },
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              }
+              { "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }
             ],
-            "url": {
-              "raw": "{{baseUrl}}/orders",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "orders"
-              ]
-            }
+            "url": "{{baseUrl}}/cart",
+            "description": "Customer-only. Returns cart; if no cart exists, returns empty structure."
           },
           "response": []
         },
         {
-          "name": "Cancel Order",
+          "name": "Add To Cart (Customer) (sets cartItemId)",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "PUT",
+            "auth": { "type": "noauth" },
+            "method": "POST",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
-            ],
-            "url": {
-              "raw": "{{baseUrl}}/orders/6988d7f828c5117b56d30dc8/cancel",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "orders",
-                "6988d7f828c5117b56d30dc8",
-                "cancel"
-              ]
-            }
-          },
-          "response": []
-        },
-        {
-          "name": "Update Status",
-          "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "PUT",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\r\n    \"status\": \"Shipped\"\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
-              }
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 2\n}\n",
+              "options": { "raw": { "language": "json" } }
             },
-            "url": {
-              "raw": "{{baseUrl}}/orders/6988b9430f769ec970b4af2f/status",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "orders",
-                "6988b9430f769ec970b4af2f",
-                "status"
-              ]
+            "url": "{{baseUrl}}/cart",
+            "description": "Customer-only. Adds product to cart (increments quantity if already present). Stores first item _id into {{cartItemId}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json;",
+                  "try { json = pm.response.json(); } catch (e) { json = null; }",
+                  "",
+                  "pm.test('Add to cart returns 200 or 400/401', function () {",
+                  "  pm.expect([200, 400, 401, 403]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (json && json.data && json.data.cart && json.data.cart.items && json.data.cart.items.length > 0) {",
+                  "  pm.collectionVariables.set('cartItemId', json.data.cart.items[0]._id);",
+                  "}"
+                ]
+              }
             }
+          ],
+          "response": []
+        },
+        {
+          "name": "Update Cart Item Quantity (PATCH) (Customer)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 3\n}\n",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/cart/{{cartItemId}}",
+            "description": "Customer-only. Sets absolute quantity. Set quantity=0 to remove the item."
+          },
+          "response": []
+        },
+        {
+          "name": "Remove From Cart (DELETE) (Customer)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "DELETE",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }
+            ],
+            "url": "{{baseUrl}}/cart/{{cartItemId}}",
+            "description": "Customer-only. Removes the cart item by its itemId (not productId)."
           },
           "response": []
         }
       ]
     },
     {
-      "name": "Cart",
+      "name": "04 - Orders",
       "item": [
         {
-          "name": "Added to Cart",
+          "name": "Place Order (Customer) (sets orderId)",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
+            "auth": { "type": "noauth" },
             "method": "POST",
             "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
+              { "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }
             ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\r\n    \"productId\": \"6988b208362c8e749e7739fd\",\r\n    \"quantity\": 2\r\n}",
-              "options": {
-                "raw": {
-                  "language": "json"
-                }
+            "body": { "mode": "raw", "raw": "", "options": { "raw": { "language": "json" } } },
+            "url": "{{baseUrl}}/orders",
+            "description": "Customer-only. Transactional checkout:\n- Validates stock at checkout\n- Deducts stock atomically\n- Creates order\n- Clears cart\n\nStores created order ID into {{orderId}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json;",
+                  "try { json = pm.response.json(); } catch (e) { json = null; }",
+                  "",
+                  "pm.test('Place order returns 201 or 400 if cart empty', function () {",
+                  "  pm.expect([201, 400, 401, 403]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (json && json.data && json.data.order && json.data.order._id) {",
+                  "  pm.collectionVariables.set('orderId', json.data.order._id);",
+                  "}"
+                ]
               }
-            },
-            "url": {
-              "raw": "{{baseUrl}}/cart",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "cart"
-              ]
             }
+          ],
+          "response": []
+        },
+        {
+          "name": "My Order History (Customer)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }
+            ],
+            "url": "{{baseUrl}}/orders",
+            "description": "Customer-only. Returns orders for authenticated user."
           },
           "response": []
         },
         {
-          "name": "Get My Cart",
+          "name": "Cancel Order (Customer)",
           "request": {
-            "auth": {
-              "type": "noauth"
-            },
-            "method": "GET",
+            "auth": { "type": "noauth" },
+            "method": "PUT",
             "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json",
-                "type": "text"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{token}}",
-                "type": "text"
-              }
+              { "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }
             ],
-            "url": {
-              "raw": "{{baseUrl}}/cart",
-              "host": [
-                "{{baseUrl}}"
-              ],
-              "path": [
-                "cart"
-              ]
-            }
+            "url": "{{baseUrl}}/orders/{{orderId}}/cancel",
+            "description": "Customer rule:\n- Only Pending orders\n- Within 1 hour of creation\n\nFraud logic:\n- cancellationCount increments\n- >3 cancels => isBlocked"
+          },
+          "response": []
+        },
+        {
+          "name": "Update Status (Admin) - Pending → Shipped",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Authorization", "value": "Bearer {{token_admin}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Shipped\"\n}\n",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/orders/{{orderId}}/status",
+            "description": "Admin-only. Enforces valid transitions:\n- Pending -> Shipped -> Delivered\n- Pending -> Cancelled\nInvalid transitions are rejected."
+          },
+          "response": []
+        },
+        {
+          "name": "Update Status (Admin) - Shipped → Delivered",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Authorization", "value": "Bearer {{token_admin}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"Delivered\"\n}\n",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/orders/{{orderId}}/status",
+            "description": "Admin-only. Second step transition: Shipped -> Delivered."
           },
           "response": []
         }
@@ -517,32 +511,62 @@
       "script": {
         "type": "text/javascript",
         "packages": {},
-        "requests": {},
         "exec": [
-          ""
+          "// Collection-level helpers can go here if needed.",
+          "// This collection uses per-request tests to capture tokens/IDs."
         ]
       }
     },
     {
       "listen": "test",
-      "script": {
-        "type": "text/javascript",
-        "packages": {},
-        "requests": {},
-        "exec": [
-          ""
-        ]
-      }
+      "script": { "type": "text/javascript", "packages": {}, "exec": [] }
     }
   ],
   "variable": [
     {
       "key": "baseUrl",
-      "value": ""
+      "value": "https://ecommerceapi-pg15.onrender.com/api",
+      "type": "string"
     },
     {
-      "key": "token",
-      "value": ""
+      "key": "adminSignupKey",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token_admin",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "token_user",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@example.com",
+      "type": "string"
+    },
+    {
+      "key": "userEmail",
+      "value": "john@example.com",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cartItemId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "type": "string"
     }
   ]
 }

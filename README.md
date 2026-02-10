@@ -1,6 +1,7 @@
+```md
 # Mini E-Commerce API 🚀
 
-A robust, RESTful backend API for a mini e-commerce platform. This project simulates core online shopping features including authentication, role-based access control, product management, cart operations, and secure order processing.
+A production-style, RESTful backend API for a mini e-commerce platform. It covers the essential workflows of an online shop: authentication, role-based access control, product management, cart operations, and transactional order processing with stock safety.
 
 Built with **Node.js**, **Express**, and **MongoDB**.
 
@@ -8,110 +9,117 @@ Built with **Node.js**, **Express**, and **MongoDB**.
 
 ## 🔗 Live API Deployment
 
-**URL:** [https://ecommerceapi-pg15.onrender.com](https://ecommerceapi-pg15.onrender.com) 
+**Base URL (deployed):** https://ecommerceapi-pg15.onrender.com  
+**API Prefix:** `/api`
 
----
+Example:
 
-## 📌 Project Overview
+```
 
-This system is designed to handle high-concurrency e-commerce operations with a focus on **data consistency** and **fraud prevention**.
-
-### Key Features
-
-* **🔐 Authentication & Authorization:**
-* JWT-based secure authentication.
-
-
-* 
-**RBAC (Role-Based Access Control):** distinct permissions for `Admin` and `Customer`.
-
-
-
-
-* **📦 Product Management:**
-* Admin-only CRUD operations for products.
-
-
-* **Soft Delete:** Products are flagged as deleted rather than removed to preserve historical order data.
-
-
-* **🛍️ Cart & Orders:**
-* Persistent database-backed shopping cart.
-
-
-* 
-**Atomic Order Placement:** Uses **MongoDB Transactions (ACID)** to ensure stock is only deducted after successful order creation.
-
-
-
-
-* **🛡️ Fraud Prevention (Bonus):**
-* 
-**Anti-Stock-Hoarding:** Implements a throttling mechanism. Users who cancel orders repeatedly (>3 times) are automatically flagged and blocked to prevent stock manipulation.
-
-
-* 
-**Negative Inventory Protection:** Strict validation ensures stock never drops below zero.
-
-
-
-
-
----
-
-## 🛠️ Tech Stack
-
-* 
-**Runtime:** Node.js 
-
-
-* 
-**Framework:** Express.js 
-
-
-* 
-**Database:** MongoDB (Mongoose ODM) 
-
-
-* 
-**Authentication:** JSON Web Tokens (JWT) & Bcrypt 
-
-
-* 
-**Validation:** Express-Validator 
-
-
-
----
-
-## 📂 Project Structure
-
-The project follows a modular **MVC (Model-View-Controller)** architecture to ensure scalability and maintainability.
-
-```text
-src/
-├── config/           # Database connections & environment config
-├── controllers/      # Business logic (Req/Res handling)
-├── middleware/       # Auth, Error handling, & Role validation
-├── models/           # Mongoose Schemas (User, Product, Cart, Order)
-├── routes/           # API Endpoint definitions
-├── utils/            # Reusable helper functions (Async wrappers, Custom Errors)
-├── app.js            # Express app setup (Middleware wiring)
-└── server.js         # Entry point (Server listener)
+GET [https://ecommerceapi-pg15.onrender.com/api/products](https://ecommerceapi-pg15.onrender.com/api/products)
 
 ```
 
 ---
 
-## 🏗️ Database Schema (ER Diagram)
+## 📌 Project Overview
 
-The application uses a normalized NoSQL structure with the following relationships:
+This backend is designed to be **simple but correct**: consistent stock updates, safe order placement, and practical guardrails against cancellation abuse.
+
+### ✅ Key Features
+
+#### 🔐 Authentication & Authorization
+- JWT-based authentication
+- RBAC (Role-Based Access Control) with two roles: `admin` and `customer`
+
+**Protected admin registration (prevents role escalation):**
+- Customers cannot self-upgrade to admin
+- Admin registration can be protected via `ADMIN_SIGNUP_KEY` (optional)
+  - When enabled, admin registration requires the `x-admin-signup-key` header (or `adminKey` in body)
+
+#### 📦 Product Management
+- Admin-only product CRUD
+- Soft delete (`isDeleted`) to preserve historical order records
+- Public product listing supports:
+  - Search (`q`)
+  - Category filter (`category`)
+  - Price filters (`minPrice`, `maxPrice`)
+  - Pagination (`page`, `limit`)
+  - Sorting (`sort`, e.g. `-price`, `price`, `-createdAt`)
+
+Example:
+
+```
+
+GET /api/products?q=laptop&category=Tech&minPrice=100&maxPrice=2000&page=1&limit=20&sort=-price
+
+````
+
+#### 🛒 Cart
+- Persistent cart per user
+- Add items to cart (supports incrementing quantity)
+- Update cart item quantity via `PATCH` (set absolute quantity; `0` removes item)
+- Remove cart items via `DELETE`
+- Cart totals are recalculated server-side
+
+#### 🧾 Orders
+- Transactional order placement using **MongoDB transactions (ACID)** (replica set required)
+- Checkout verifies stock in real-time and prevents negative inventory
+- Orders snapshot item name/price/quantity at purchase time
+- Admin-only order status updates
+
+> Note: In the current codebase, status updates accept allowed enum values. If you want strict transition enforcement (`Pending → Shipped → Delivered`), implement it in `orderController.updateStatus`.
+
+#### 🛡️ Fraud Prevention (Bonus)
+- Anti stock-hoarding throttling:
+  - Users cancelling orders repeatedly (>3) are automatically flagged and blocked
+  - Block enforcement happens during login and can be extended to all protected routes if you choose
+- Cancellation behavior:
+  - Cancellation is blocked for `Shipped` / `Delivered` orders
+  - Admin can cancel any eligible order without triggering fraud penalties
+
+#### 🔒 Lightweight Security Hardening (Bonus)
+- Rate limiting on `/api` routes
+- Mongo query operator sanitization (basic injection prevention)
+- Helmet security headers
+
+---
+
+## 🛠️ Tech Stack
+
+- **Runtime:** Node.js  
+- **Framework:** Express.js  
+- **Database:** MongoDB (Mongoose ODM)  
+- **Authentication:** JSON Web Tokens (JWT) & Bcrypt  
+- **Validation:** Express-Validator  
+- **Security:** Helmet, Express Rate Limit, Express Mongo Sanitize  
+
+---
+
+## 📂 Project Structure
+
+Modular **MVC** architecture for clarity and maintainability.
+
+```text
+src/
+├── config/           # Database connections & environment config
+├── controllers/      # Business logic (Req/Res handling)
+├── middleware/       # Auth, Validation, Error handling, Role checks
+├── models/           # Mongoose Schemas (User, Product, Cart, Order)
+├── routes/           # API Endpoint definitions
+├── utils/            # Reusable helpers (Async wrappers, Custom Errors)
+├── app.js            # Express app setup (Middleware wiring)
+└── server.js         # Entry point (Server listener)
+````
+
+---
+
+## 🏗️ Database Schema (ER Diagram)
 
 ```mermaid
 erDiagram
     USER ||--o{ ORDER : places
     USER ||--|| CART : has
-    CART ||--|{ PRODUCT : contains
     ORDER ||--|{ ORDER_ITEM : contains
 
     USER {
@@ -127,198 +135,177 @@ erDiagram
         String title
         Number price
         Number stock
+        String category
         Boolean isDeleted
     }
 
     CART {
         ObjectId userId
-        Array items "productId, quantity"
+        Array items "productId, quantity, price snapshot"
         Number totalPrice
     }
 
     ORDER {
         ObjectId userId
-        Array items "Snapshot of Product Data"
+        Array items "Snapshot of product name/price/qty"
+        Number totalAmount
         String status "Pending/Shipped/Delivered/Cancelled"
         String paymentStatus
     }
-
 ```
 
 ---
 
 ## 🧠 Key Architectural Decisions
 
-1. **Atomic Transactions (ACID):**
-* 
-**Problem:** If a server crashes after creating an order but before deducting stock, inventory becomes inaccurate. 
+### 1) Atomic Transactions (ACID)
 
+* **Problem:** Crashes or partial writes can create inconsistent inventory.
+* **Solution:** Use `mongoose.startSession()` to wrap stock deduction, order creation, and cart clearing in a single transaction.
 
-* 
-**Solution:** We use `mongoose.startSession()` to wrap the *Order Creation*, *Stock Deduction*, and *Cart Clearing* into a single atomic transaction. 
+### 2) Data Snapshots in Orders
 
+* **Problem:** Product price/name can change after purchase.
+* **Solution:** Snapshot `name`, `price`, and `quantity` into `Order.items[]`.
 
+### 3) Stock-Safe Checkout
 
+* **Problem:** Race conditions can cause overselling.
+* **Solution:** Validate stock at checkout and deduct stock inside the same transaction so stock never becomes negative.
 
-2. **Data Snapshots in Orders:**
-* **Problem:** If a product price changes later, old order history should not reflect the new price.
-* 
-**Solution:** When an order is created, we snapshot the `price` and `name` of the product into the `OrderItems` array. 
+### 4) Cancellation Throttling (Fraud Logic)
 
-
-
-
-3. **Cancellation Throttling (Fraud Logic):**
-* 
-**Problem:** Malicious users can reserve stock via orders and cancel them repeatedly to deny stock to others. 
-
-
-* **Solution:** The user model tracks `cancellationCount`. Exceeding 3 cancellations triggers an automatic `isBlocked` flag.
-
-
+* **Problem:** Users can reserve stock and cancel repeatedly to block others.
+* **Solution:** Track `cancellationCount` and auto-block after excessive cancellations.
 
 ---
 
-## 📝 Assumptions Made
+## 📝 Assumptions
 
-1. 
-**Stock Reservation:** Stock is **not** reserved when added to the Cart. Real deduction happens strictly at the **Order Placement** stage.
-
-
-2. 
-**Currency:** All prices are treated as integers/floats in a single currency unit for simplicity.
-
-
-3. 
-**Deletion:** "Deleting" a product performs a **Soft Delete** to ensure that historical orders referencing that product remain valid.
-
-
+* Stock is **not reserved** at cart time; deduction occurs at checkout.
+* Prices are numeric in a single currency.
+* Product removal is a **soft delete** to protect historical orders.
 
 ---
 
 ## 🚀 Getting Started
 
-Follow these steps to set up the project locally.
-
 ### Prerequisites
 
-* [Node.js](https://nodejs.org/) (v14+ recommended)
-* [MongoDB](https://www.mongodb.com/try/download/community) (Local or Atlas)
+* Node.js (v14+ recommended)
+* MongoDB (Local or Atlas)
 
 ### Installation
 
-1. **Clone the repository:**
+1. **Clone the repository**
+
 ```bash
 git clone https://github.com/smri29/Mini-E-Commerce-API.git
 cd Mini-E-Commerce-API
-
 ```
 
+2. **Install dependencies**
 
-2. **Install dependencies:**
 ```bash
 npm install
-
 ```
 
+3. **Environment Configuration**
+   Create a `.env` file in the root directory:
 
-3. **Environment Configuration:**
-Create a `.env` file in the root directory and add:
 ```env
 PORT=5000
 MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_super_secret_key_123
+JWT_EXPIRES_IN=30d
+ADMIN_SIGNUP_KEY=some_long_random_secret  # optional (only if you want protected admin signup)
 NODE_ENV=development
-
 ```
 
+4. **Run the server**
 
-4. **Run the server:**
 ```bash
 # Development mode
 npm run dev
 
 # Production mode
 npm start
-
 ```
-
-
 
 ---
 
 ## 📖 API Documentation
 
-### **Postman Collection**
+### Postman Collection
 
-A pre-configured Postman collection is available for testing in the `docs/` folder.
+A ready-to-use Postman collection is included.
 
-* **File:** `docs/postman/Mini-Ecommerce-API.postman_collection.json`
+* **File:** `docs/postman/Mini E-Commerce API.postman_collection.json`
+* **How to use:** see `docs/POSTMAN.md`
 
-**Endpoints** 
+---
 
-#### **Authentication**
+## 🔌 Endpoints
 
-* 
-`POST /api/auth/register` - Register a new user.
+### Authentication
 
+* `POST /api/auth/register` — Register a new user
 
-* 
-`POST /api/auth/login` - Login and receive JWT.
+  * Default role: `customer`
+  * Admin registration may require `x-admin-signup-key` (or `adminKey`) if enabled
+* `POST /api/auth/login` — Login and receive JWT
 
+### Products
 
+* `GET /api/products` — List products (**supports filters/search/pagination**)
+  Query params: `q`, `category`, `minPrice`, `maxPrice`, `page`, `limit`, `sort`
+* `GET /api/products/:id` — Get single product
+* `POST /api/products` — Create product (**Admin only**)
+* `PUT /api/products/:id` — Update product (**Admin only**)
+* `DELETE /api/products/:id` — Soft delete product (**Admin only**)
 
-#### **Products**
+### Cart (Customer)
 
-* `GET /api/products` - List all products.
-* 
-`POST /api/products` - Add new product (**Admin only**).
+* `GET /api/cart` — View my cart
+* `POST /api/cart` — Add item to cart (increments quantity)
+* `PATCH /api/cart/:itemId` — Set item quantity (`0` removes item)
+* `DELETE /api/cart/:itemId` — Remove item from cart
 
+### Orders
 
-* 
-`PUT /api/products/:id` - Update product (**Admin only**).
-
-
-* 
-`DELETE /api/products/:id` - Delete product (**Admin only**).
-
-
-
-#### **Cart**
-
-* `GET /api/cart` - View user's cart.
-* 
-`POST /api/cart` - Add item to cart.
-
-
-* 
-`DELETE /api/cart/:itemId` - Remove item from cart.
-
-
-
-#### **Orders**
-
-* 
-`POST /api/orders` - Place an order (**Transactional**).
-
-
-* `GET /api/orders` - View order history.
-* 
-`PUT /api/orders/:id/cancel` - Cancel order.
-
-
+* `POST /api/orders` — Place order (**Transactional**)
+* `GET /api/orders` — My order history
+* `PUT /api/orders/:id/cancel` — Cancel order (rules apply)
+* `PUT /api/orders/:id/status` — Update order status (**Admin only**)
 
 ---
 
 ## 🧪 Testing
 
+This repo includes minimal integration tests (Jest + Supertest) that validate:
+
+1. Auth (register/login)
+2. RBAC (admin-only product creation)
+3. Transactional checkout (cart → order → stock decrement)
+
+Run tests:
+
 ```bash
 npm test
-
 ```
+
+Manual testing notes are in:
+
+* `docs/TESTING.md`
+
+---
 
 ## 📜 License
 
-This project is open-source and available under the [MIT License](https://opensource.org/licenses/MIT).
+This project is open-source and available under the MIT License.
 
 ---
+
+```
+::contentReference[oaicite:0]{index=0}
+```

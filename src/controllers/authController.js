@@ -3,74 +3,95 @@ const jwt = require('jsonwebtoken');
 const ApiError = require('../utils/apiError');
 const asyncHandler = require('../utils/asyncHandler');
 
-// Helper: Generate JWT Token
 const signToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
-        expiresIn: '30d' // Token valid for 30 days
-    });
+  return jwt.sign({ id }, process.env.JWT_SECRET, {
+    expiresIn: process.env.JWT_EXPIRES_IN || '30d'
+  });
 };
 
 // @desc    Register a new user
 // @route   POST /api/auth/register
 exports.register = asyncHandler(async (req, res, next) => {
-    const { name, email, password, role } = req.body;
+  const { name, email, password, role, adminKey } = req.body;
 
-    // Check if user exists
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-        throw new ApiError(400, 'User already exists');
+  if (!name || !email || !password) {
+    throw new ApiError(400, 'Please provide name, email, and password');
+  }
+
+  const normalizedEmail = String(email).toLowerCase().trim();
+
+  const userExists = await User.findOne({ email: normalizedEmail });
+  if (userExists) {
+    throw new ApiError(400, 'User already exists');
+  }
+
+  // Security: prevent role escalation
+  let finalRole = 'customer';
+  const requestedRole = role ? String(role).toLowerCase().trim() : 'customer';
+
+  if (requestedRole === 'admin') {
+    // Admin registration allowed only with server secret
+    const keyFromHeader = req.headers['x-admin-signup-key'];
+    const providedKey = adminKey || keyFromHeader;
+
+    if (!process.env.ADMIN_SIGNUP_KEY) {
+      throw new ApiError(403, 'Admin registration is disabled');
     }
+    if (!providedKey || providedKey !== process.env.ADMIN_SIGNUP_KEY) {
+      throw new ApiError(403, 'Invalid admin signup key');
+    }
+    finalRole = 'admin';
+  }
 
-    // Create User
-    const user = await User.create({
-        name,
-        email,
-        password,
-        role: role || 'customer' // Default to customer if not specified
-    });
+  const user = await User.create({
+    name,
+    email: normalizedEmail,
+    password,
+    role: finalRole
+  });
 
-    // Send Token
-    const token = signToken(user._id);
+  const token = signToken(user._id);
 
-    // Remove password from output
-    user.password = undefined;
+  // Hide password
+  user.password = undefined;
 
-    res.status(201).json({
-        status: 'success',
-        token,
-        data: { user }
-    });
+  res.status(201).json({
+    status: 'success',
+    token,
+    data: { user }
+  });
 });
 
 // @desc    Login user
 // @route   POST /api/auth/login
 exports.login = asyncHandler(async (req, res, next) => {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    // 1. Check if email and password exist
-    if (!email || !password) {
-        throw new ApiError(400, 'Please provide email and password');
-    }
+  if (!email || !password) {
+    throw new ApiError(400, 'Please provide email and password');
+  }
 
-    // 2. Check if user exists & password is correct
-    const user = await User.findOne({ email }).select('+password');
+  const normalizedEmail = String(email).toLowerCase().trim();
 
-    if (!user || !(await user.correctPassword(password, user.password))) {
-        throw new ApiError(401, 'Incorrect email or password');
-    }
+  const user = await User.findOne({ email: normalizedEmail }).select('+password');
 
-    // 3. 🛡️ Fraud Check: Deny access if user is blocked
-    if (user.isBlocked) {
-        throw new ApiError(403, 'Your account has been suspended due to suspicious activity. Please contact support.');
-    }
+  if (!user || !(await user.correctPassword(password, user.password))) {
+    throw new ApiError(401, 'Incorrect email or password');
+  }
 
-    // 4. Send Token
-    const token = signToken(user._id);
-    user.password = undefined;
+  if (user.isBlocked) {
+    throw new ApiError(
+      403,
+      'Your account has been suspended due to suspicious activity. Please contact support.'
+    );
+  }
 
-    res.status(200).json({
-        status: 'success',
-        token,
-        data: { user }
-    });
+  const token = signToken(user._id);
+  user.password = undefined;
+
+  res.status(200).json({
+    status: 'success',
+    token,
+    data: { user }
+  });
 });

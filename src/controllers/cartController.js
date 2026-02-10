@@ -7,93 +7,126 @@ const ApiError = require('../utils/apiError');
 // @route   GET /api/cart
 // @access  Private (Customer)
 exports.getCart = asyncHandler(async (req, res, next) => {
-    let cart = await Cart.findOne({ userId: req.user._id });
+  let cart = await Cart.findOne({ userId: req.user._id });
 
-    if (!cart) {
-        // Return empty cart structure if none exists
-        cart = { items: [], totalPrice: 0 };
-    }
+  if (!cart) {
+    cart = { items: [], totalPrice: 0 };
+  }
 
-    res.status(200).json({
-        status: 'success',
-        data: { cart }
-    });
+  res.status(200).json({
+    status: 'success',
+    data: { cart }
+  });
 });
 
-// @desc    Add item to cart
+// @desc    Add item to cart (or increase qty)
 // @route   POST /api/cart
 // @access  Private (Customer)
 exports.addToCart = asyncHandler(async (req, res, next) => {
-    const { productId, quantity } = req.body;
-    const qty = parseInt(quantity) || 1;
+  const { productId, quantity } = req.body;
+  const qty = parseInt(quantity, 10) || 1;
 
-    // 1. Check if product exists and has stock
-    const product = await Product.findById(productId);
-    if (!product) {
-        throw new ApiError(404, 'Product not found');
+  const product = await Product.findById(productId);
+  if (!product) throw new ApiError(404, 'Product not found');
+
+  if (product.stock < qty) {
+    throw new ApiError(400, `Not enough stock. Only ${product.stock} left.`);
+  }
+
+  let cart = await Cart.findOne({ userId: req.user._id });
+  if (!cart) cart = await Cart.create({ userId: req.user._id, items: [] });
+
+  const itemIndex = cart.items.findIndex((p) => p.productId.toString() === productId);
+
+  if (itemIndex > -1) {
+    const newQty = cart.items[itemIndex].quantity + qty;
+
+    if (product.stock < newQty) {
+      throw new ApiError(
+        400,
+        `Cannot add more. You already have ${cart.items[itemIndex].quantity} and stock is ${product.stock}.`
+      );
     }
 
-    if (product.stock < qty) {
-        throw new ApiError(400, `Not enough stock. Only ${product.stock} left.`);
-    }
-
-    // 2. Find or Create Cart
-    let cart = await Cart.findOne({ userId: req.user._id });
-    if (!cart) {
-        cart = await Cart.create({ userId: req.user._id, items: [] });
-    }
-
-    // 3. Check if item already exists in cart
-    const itemIndex = cart.items.findIndex(p => p.productId.toString() === productId);
-
-    if (itemIndex > -1) {
-        // Product exists in cart, update quantity
-        let newQty = cart.items[itemIndex].quantity + qty;
-        
-        // Double check stock for the NEW total quantity
-        if (product.stock < newQty) {
-            throw new ApiError(400, `Cannot add more. You already have ${cart.items[itemIndex].quantity} in cart and stock is ${product.stock}.`);
-        }
-        
-        cart.items[itemIndex].quantity = newQty;
-    } else {
-        // Product does not exist in cart, push new item
-        cart.items.push({
-            productId,
-            quantity: qty,
-            price: product.price,
-            name: product.title
-        });
-    }
-
-    // 4. Save (triggers total calculation via method if we call it, or we do it manually)
-    cart.calculateTotal();
-    await cart.save();
-
-    res.status(200).json({
-        status: 'success',
-        data: { cart }
+    cart.items[itemIndex].quantity = newQty;
+    // keep cached fields fresh
+    cart.items[itemIndex].price = product.price;
+    cart.items[itemIndex].name = product.title;
+  } else {
+    cart.items.push({
+      productId,
+      quantity: qty,
+      price: product.price,
+      name: product.title
     });
+  }
+
+  await cart.save(); // total recalculated by pre-save hook
+
+  res.status(200).json({
+    status: 'success',
+    data: { cart }
+  });
+});
+
+// @desc    Update cart item quantity (set absolute quantity)
+// @route   PATCH /api/cart/:itemId
+// @access  Private (Customer)
+exports.updateCartItem = asyncHandler(async (req, res, next) => {
+  const { quantity } = req.body;
+  const qty = parseInt(quantity, 10);
+
+  if (!Number.isFinite(qty) || qty < 0) {
+    throw new ApiError(400, 'quantity must be a non-negative integer');
+  }
+
+  const cart = await Cart.findOne({ userId: req.user._id });
+  if (!cart) throw new ApiError(404, 'Cart not found');
+
+  const item = cart.items.id(req.params.itemId);
+  if (!item) throw new ApiError(404, 'Cart item not found');
+
+  // If qty is 0, remove item
+  if (qty === 0) {
+    item.deleteOne();
+    await cart.save();
+    return res.status(200).json({ status: 'success', data: { cart } });
+  }
+
+  const product = await Product.findById(item.productId);
+  if (!product) throw new ApiError(404, 'Product not found');
+
+  if (product.stock < qty) {
+    throw new ApiError(400, `Not enough stock. Only ${product.stock} left.`);
+  }
+
+  item.quantity = qty;
+  item.price = product.price;
+  item.name = product.title;
+
+  await cart.save();
+
+  res.status(200).json({
+    status: 'success',
+    data: { cart }
+  });
 });
 
 // @desc    Remove item from cart
 // @route   DELETE /api/cart/:itemId
 // @access  Private (Customer)
 exports.removeFromCart = asyncHandler(async (req, res, next) => {
-    const cart = await Cart.findOne({ userId: req.user._id });
+  const cart = await Cart.findOne({ userId: req.user._id });
+  if (!cart) throw new ApiError(404, 'Cart not found');
 
-    if (!cart) {
-        throw new ApiError(404, 'Cart not found');
-    }
+  const item = cart.items.id(req.params.itemId);
+  if (!item) throw new ApiError(404, 'Cart item not found');
 
-    // Filter out the item to remove
-    cart.items = cart.items.filter(item => item._id.toString() !== req.params.itemId);
+  item.deleteOne();
+  await cart.save();
 
-    cart.calculateTotal();
-    await cart.save();
-
-    res.status(200).json({
-        status: 'success',
-        data: { cart }
-    });
+  res.status(200).json({
+    status: 'success',
+    data: { cart }
+  });
 });

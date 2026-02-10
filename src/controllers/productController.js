@@ -2,78 +2,141 @@ const Product = require('../models/Product');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/apiError');
 
-// @desc    Get all products
+const toNumber = (v) => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : undefined;
+};
+
+// @desc    Get all products (with filters)
 // @route   GET /api/products
 // @access  Public
 exports.getAllProducts = asyncHandler(async (req, res, next) => {
-    const products = await Product.find();
+  const {
+    q,
+    category,
+    minPrice,
+    maxPrice,
+    sort = '-createdAt',
+    page = 1,
+    limit = 20
+  } = req.query;
 
-    res.status(200).json({
-        status: 'success',
-        results: products.length,
-        data: { products }
-    });
+  const filter = {};
+
+  if (q) {
+    filter.title = { $regex: String(q), $options: 'i' };
+  }
+
+  if (category) {
+    filter.category = { $regex: `^${String(category).trim()}$`, $options: 'i' };
+  }
+
+  const minP = toNumber(minPrice);
+  const maxP = toNumber(maxPrice);
+  if (minP !== undefined || maxP !== undefined) {
+    filter.price = {};
+    if (minP !== undefined) filter.price.$gte = minP;
+    if (maxP !== undefined) filter.price.$lte = maxP;
+  }
+
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+  const skip = (pageNum - 1) * limitNum;
+
+  const sortBy = String(sort)
+    .split(',')
+    .join(' ');
+
+  const [total, products] = await Promise.all([
+    Product.countDocuments(filter),
+    Product.find(filter).sort(sortBy).skip(skip).limit(limitNum)
+  ]);
+
+  res.status(200).json({
+    status: 'success',
+    meta: {
+      total,
+      page: pageNum,
+      limit: limitNum,
+      pages: Math.ceil(total / limitNum)
+    },
+    results: products.length,
+    data: { products }
+  });
 });
 
 // @desc    Get single product
 // @route   GET /api/products/:id
 // @access  Public
 exports.getProduct = asyncHandler(async (req, res, next) => {
-    const product = await Product.findById(req.params.id);
+  const product = await Product.findById(req.params.id);
 
-    if (!product) {
-        throw new ApiError(404, 'Product not found');
-    }
+  if (!product) {
+    throw new ApiError(404, 'Product not found');
+  }
 
-    res.status(200).json({
-        status: 'success',
-        data: { product }
-    });
+  res.status(200).json({
+    status: 'success',
+    data: { product }
+  });
 });
 
 // @desc    Create new product
 // @route   POST /api/products
 // @access  Private (Admin only)
 exports.createProduct = asyncHandler(async (req, res, next) => {
-    const product = await Product.create(req.body);
+  const { title, description, price, stock, category } = req.body;
 
-    res.status(201).json({
-        status: 'success',
-        data: { product }
-    });
+  const product = await Product.create({ title, description, price, stock, category });
+
+  res.status(201).json({
+    status: 'success',
+    data: { product }
+  });
 });
 
 // @desc    Update product
 // @route   PUT /api/products/:id
 // @access  Private (Admin only)
 exports.updateProduct = asyncHandler(async (req, res, next) => {
-    const product = await Product.findByIdAndUpdate(req.params.id, req.body, {
-        new: true,
-        runValidators: true
-    });
+  const allowed = ['title', 'description', 'price', 'stock', 'category'];
+  const payload = {};
+  for (const k of allowed) {
+    if (req.body[k] !== undefined) payload[k] = req.body[k];
+  }
 
-    if (!product) {
-        throw new ApiError(404, 'Product not found');
-    }
+  const product = await Product.findByIdAndUpdate(req.params.id, payload, {
+    new: true,
+    runValidators: true
+  });
 
-    res.status(200).json({
-        status: 'success',
-        data: { product }
-    });
+  if (!product) {
+    throw new ApiError(404, 'Product not found');
+  }
+
+  res.status(200).json({
+    status: 'success',
+    data: { product }
+  });
 });
 
 // @desc    Delete product (Soft Delete)
 // @route   DELETE /api/products/:id
 // @access  Private (Admin only)
 exports.deleteProduct = asyncHandler(async (req, res, next) => {
-    const product = await Product.findByIdAndUpdate(req.params.id, { isDeleted: true });
+  const product = await Product.findByIdAndUpdate(
+    req.params.id,
+    { isDeleted: true },
+    { new: true, runValidators: true }
+  );
 
-    if (!product) {
-        throw new ApiError(404, 'Product not found');
-    }
+  if (!product) {
+    throw new ApiError(404, 'Product not found');
+  }
 
-    res.status(204).json({
-        status: 'success',
-        data: null
-    });
+
+  res.status(200).json({
+    status: 'success',
+    data: { product }
+  });
 });
