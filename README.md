@@ -15,20 +15,22 @@ Quick check:
 
 ```bash
 curl -s https://ecommerceapi-pg15.onrender.com/api/products
+````
 
+---
 
 ## What This Project Includes
 
 This backend is designed to be **simple but correct**: consistent stock updates, safe order placement, and practical guardrails against cancellation abuse.
 
-### Key Features
+## Key Features
 
-**Authentication & Authorization**
+### Authentication & Authorization
 
 * JWT-based authentication
 * RBAC with two roles: `admin` and `customer`
 
-**Protected admin registration (prevents role escalation)**
+**Protected admin registration (prevents role escalation):**
 
 * Customers cannot self-upgrade to admin
 * Admin registration can be protected with `ADMIN_SIGNUP_KEY` (optional)
@@ -36,9 +38,9 @@ This backend is designed to be **simple but correct**: consistent stock updates,
   * When enabled, admin signup requires either:
 
     * `x-admin-signup-key` header, or
-    * `adminKey` in request body
+    * `adminKey` in the request body
 
-**Product Management**
+### Product Management
 
 * Admin-only product CRUD
 * Soft delete (`isDeleted`) to preserve historical order records
@@ -54,6 +56,8 @@ Example:
 
 ```bash
 curl "http://localhost:5000/api/products?q=laptop&category=Tech&minPrice=100&maxPrice=2000&page=1&limit=20&sort=-price"
+```
+
 ```
 
 **Cart**
