@@ -15,6 +15,7 @@ Built with **Node.js**, **Express**, and **MongoDB (Mongoose)**.
 Quick check:
 Live (Deployed): https://ecommerceapi-pg15.onrender.com/api/products
 
+```
 ---
 
 ## What This Project Includes
