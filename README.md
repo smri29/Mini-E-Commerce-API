@@ -307,5 +307,3 @@ This project is open-source and available under the MIT License.
 ---
 
 ```
-::contentReference[oaicite:0]{index=0}
-```
