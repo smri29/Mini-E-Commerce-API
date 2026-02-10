@@ -1,3 +1,4 @@
+````md
 # Mini E-Commerce API 🚀
 
 A production-style REST API for a mini e-commerce platform. It covers core backend workflows: authentication, role-based access control, product management, cart operations, and transactional order processing with stock safety.
@@ -11,16 +12,22 @@ Built with **Node.js**, **Express**, and **MongoDB (Mongoose)**.
 - **Base URL (deployed):** https://ecommerceapi-pg15.onrender.com
 - **API Prefix:** `/api`
 
-````md
 Quick check:
-Live (Deployed): https://ecommerceapi-pg15.onrender.com/api/products
 
-```
+- Live (deployed):
+  - https://ecommerceapi-pg15.onrender.com/api/products
+
+```bash
+curl -s https://ecommerceapi-pg15.onrender.com/api/products
+````
+
 ---
 
 ## What This Project Includes
 
 This backend is designed to be **simple but correct**: consistent stock updates, safe order placement, and practical guardrails against cancellation abuse.
+
+---
 
 ## Key Features
 
@@ -57,7 +64,7 @@ Example:
 curl "http://localhost:5000/api/products?q=laptop&category=Tech&minPrice=100&maxPrice=2000&page=1&limit=20&sort=-price"
 ```
 
-**Cart**
+### Cart
 
 * One persistent cart per user
 * Add items (supports incrementing quantity)
@@ -65,18 +72,19 @@ curl "http://localhost:5000/api/products?q=laptop&category=Tech&minPrice=100&max
 * Remove cart items via `DELETE`
 * Cart totals are recalculated server-side
 
-**Orders**
+### Orders
 
 * Transactional order placement using **MongoDB transactions (ACID)**
-  (Replica set required: Atlas works; local Mongo needs replica set enabled)
+
+  * Replica set required (MongoDB Atlas works; local MongoDB needs replica set enabled)
 * Checkout verifies stock in real-time and prevents negative inventory
-* Orders snapshot item name/price/quantity at purchase time
+* Orders snapshot item `name` / `price` / `quantity` at purchase time
 * Admin can update order status
 
 > Note: The current code accepts any allowed enum value for order status.
 > If you want strict status transitions (e.g., `Pending → Shipped → Delivered`), add transition validation in `orderController.updateStatus`.
 
-**Fraud Prevention (Bonus)**
+### Fraud Prevention (Bonus)
 
 * Anti stock-hoarding throttling:
 
@@ -86,7 +94,7 @@ curl "http://localhost:5000/api/products?q=laptop&category=Tech&minPrice=100&max
   * Cancellation is blocked for `Shipped` / `Delivered` orders
   * Admin can cancel eligible orders without triggering fraud penalties
 
-**Security Hardening (Bonus)**
+### Security Hardening (Bonus)
 
 * Rate limiting on `/api` routes
 * Mongo query operator sanitization (basic injection prevention)
@@ -114,7 +122,7 @@ src/
 ├── middleware/       # Auth, validation, error handling, role checks
 ├── models/           # Mongoose schemas (User, Product, Cart, Order)
 ├── routes/           # Route definitions
-├── utils/            # Helpers (Async wrapper, custom errors)
+├── utils/            # Helpers (async wrapper, custom errors)
 ├── app.js            # Express app setup (middleware + routes)
 └── server.js         # Entry point (server boot)
 ```
@@ -165,33 +173,33 @@ erDiagram
 
 ## Key Architectural Decisions
 
-**1) Transactions for Checkout (ACID)**
+### 1) Transactions for Checkout (ACID)
 
-* Prevents partial writes and inconsistent inventory.
-* Uses `mongoose.startSession()` so stock deduction, order creation, and cart clearing happen atomically.
+* Prevents partial writes and inconsistent inventory
+* Uses `mongoose.startSession()` so stock deduction, order creation, and cart clearing happen atomically
 
-**2) Snapshotting Order Items**
+### 2) Snapshotting Order Items
 
-* Order history should not change if product title/price changes later.
-* Orders store `name`, `price`, and `quantity` in `Order.items[]`.
+* Order history should not change if product title/price changes later
+* Orders store `name`, `price`, and `quantity` in `Order.items[]`
 
-**3) Stock Safety**
+### 3) Stock Safety
 
-* Stock is re-validated at checkout and deducted inside the same transaction.
-* Prevents negative inventory during concurrent checkouts.
+* Stock is re-validated at checkout and deducted inside the same transaction
+* Prevents negative inventory during concurrent checkouts
 
-**4) Cancellation Throttling**
+### 4) Cancellation Throttling
 
-* Repeated cancellations can be used to hoard stock.
-* Tracks `cancellationCount` and blocks users after excessive cancellations.
+* Repeated cancellations can be used to hoard stock
+* Tracks `cancellationCount` and blocks users after excessive cancellations
 
 ---
 
 ## Assumptions
 
-* Stock is **not reserved** when added to cart; stock is deducted at checkout.
-* Prices are numeric in a single currency unit.
-* Products use **soft delete** to preserve past order integrity.
+* Stock is **not reserved** when added to cart; stock is deducted at checkout
+* Prices are numeric in a single currency unit
+* Products use **soft delete** to preserve past order integrity
 
 ---
 
@@ -217,7 +225,7 @@ cd Mini-E-Commerce-API
 npm install
 ```
 
-3. Create `.env`:
+3. Create `.env` in the project root:
 
 ```env
 PORT=5000
