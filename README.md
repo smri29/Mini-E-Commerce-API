@@ -13,10 +13,7 @@ Built with **Node.js**, **Express**, and **MongoDB (Mongoose)**.
 
 ````md
 Quick check:
-
-```bash
-curl -s https://ecommerceapi-pg15.onrender.com/api/products
-````
+Live (Deployed): https://ecommerceapi-pg15.onrender.com/api/products
 
 ---
 
