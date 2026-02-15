@@ -9,51 +9,38 @@ const productSchema = new mongoose.Schema(
     },
     description: {
       type: String,
-      required: [true, 'Please provide a description'],
-      trim: true
+      required: [true, 'Please provide a description']
     },
     price: {
       type: Number,
       required: [true, 'Please provide a price'],
-      min: [0, 'Price cannot be negative']
+      min: [0, 'Price must be non-negative']
     },
     stock: {
       type: Number,
       required: [true, 'Please provide stock quantity'],
       min: [0, 'Stock cannot be negative'],
-      default: 0,
-      validate: {
-        validator: Number.isInteger,
-        message: 'Stock must be an integer'
-      }
+      default: 0
     },
     category: {
       type: String,
       required: [true, 'Please provide a category'],
-      trim: true,
-      index: true
+      index: true,
+      trim: true
     },
     isDeleted: {
       type: Boolean,
       default: false,
-      select: false,
-      index: true
+      select: false
     }
   },
-  {
-    timestamps: true,
-    toJSON: { versionKey: false },
-    toObject: { versionKey: false }
-  }
+  { timestamps: true }
 );
 
-// Hide soft-deleted products from all find queries
-productSchema.pre(/^find/, function (next) {
+// Exclude soft-deleted docs from all find* queries
+// Promise-style pre hook (no next callback)
+productSchema.pre(/^find/, function () {
   this.where({ isDeleted: { $ne: true } });
-  next();
 });
-
-productSchema.index({ category: 1, createdAt: -1 });
-productSchema.index({ title: 'text', description: 'text' });
 
 module.exports = mongoose.model('Product', productSchema);

@@ -3,14 +3,21 @@ const jwt = require('jsonwebtoken');
 const ApiError = require('../utils/apiError');
 const asyncHandler = require('../utils/asyncHandler');
 
-const signToken = (id) => {
-  if (!process.env.JWT_SECRET) {
-    throw new ApiError(500, 'JWT secret is not configured');
-  }
+const resolveJwtSecret = () => {
+  if (process.env.JWT_SECRET) return process.env.JWT_SECRET;
 
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN || '30d'
-  });
+  // Safety fallback for test runtime only
+  if (process.env.NODE_ENV === 'test') return 'test_jwt_secret_123';
+
+  throw new ApiError(500, 'Server configuration error: JWT_SECRET is missing');
+};
+
+const signToken = (id) => {
+  return jwt.sign(
+    { id: id.toString() },
+    resolveJwtSecret(),
+    { expiresIn: process.env.JWT_EXPIRES_IN || '30d' }
+  );
 };
 
 // @desc    Register a new user
@@ -22,20 +29,19 @@ exports.register = asyncHandler(async (req, res, next) => {
     throw new ApiError(400, 'Please provide name, email, and password');
   }
 
-  const normalizedName = String(name).trim();
   const normalizedEmail = String(email).toLowerCase().trim();
+  const normalizedName = String(name).trim();
 
   const userExists = await User.findOne({ email: normalizedEmail });
   if (userExists) {
     throw new ApiError(400, 'User already exists');
   }
 
-  // Security: prevent role escalation
+  // Prevent role escalation
   let finalRole = 'customer';
   const requestedRole = role ? String(role).toLowerCase().trim() : 'customer';
 
   if (requestedRole === 'admin') {
-    // Admin registration allowed only with server secret
     const keyFromHeader = req.headers['x-admin-signup-key'];
     const providedKey = adminKey || keyFromHeader;
 
@@ -45,6 +51,7 @@ exports.register = asyncHandler(async (req, res, next) => {
     if (!providedKey || providedKey !== process.env.ADMIN_SIGNUP_KEY) {
       throw new ApiError(403, 'Invalid admin signup key');
     }
+
     finalRole = 'admin';
   }
 
@@ -56,8 +63,6 @@ exports.register = asyncHandler(async (req, res, next) => {
   });
 
   const token = signToken(user._id);
-
-  // Hide password
   user.password = undefined;
 
   res.status(201).json({
@@ -79,7 +84,6 @@ exports.login = asyncHandler(async (req, res, next) => {
   const normalizedEmail = String(email).toLowerCase().trim();
 
   const user = await User.findOne({ email: normalizedEmail }).select('+password');
-
   if (!user || !(await user.correctPassword(password, user.password))) {
     throw new ApiError(401, 'Incorrect email or password');
   }

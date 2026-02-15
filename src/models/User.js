@@ -6,22 +6,19 @@ const userSchema = new mongoose.Schema(
     name: {
       type: String,
       required: [true, 'Please provide a name'],
-      trim: true,
-      minlength: [2, 'Name must be at least 2 characters']
+      trim: true
     },
     email: {
       type: String,
       required: [true, 'Please provide an email'],
       unique: true,
       lowercase: true,
-      trim: true,
-      index: true
+      trim: true
     },
     password: {
       type: String,
       required: [true, 'Please provide a password'],
       minlength: 6,
-      maxlength: 72, // bcrypt practical limit guard
       select: false
     },
     role: {
@@ -31,8 +28,7 @@ const userSchema = new mongoose.Schema(
     },
     cancellationCount: {
       type: Number,
-      default: 0,
-      min: 0
+      default: 0
     },
     lastCancellationTime: {
       type: Date
@@ -42,21 +38,13 @@ const userSchema = new mongoose.Schema(
       default: false
     }
   },
-  {
-    timestamps: true,
-    toJSON: { versionKey: false },
-    toObject: { versionKey: false }
-  }
+  { timestamps: true }
 );
 
-userSchema.pre('save', async function (next) {
-  try {
-    if (!this.isModified('password')) return next();
-    this.password = await bcrypt.hash(this.password, 12);
-    return next();
-  } catch (err) {
-    return next(err);
-  }
+// IMPORTANT: async pre hook should NOT accept/use `next`
+userSchema.pre('save', async function () {
+  if (!this.isModified('password')) return;
+  this.password = await bcrypt.hash(this.password, 12);
 });
 
 userSchema.methods.correctPassword = async function (candidatePassword, userPassword) {

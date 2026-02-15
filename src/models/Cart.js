@@ -1,60 +1,42 @@
 const mongoose = require('mongoose');
 
-const cartItemSchema = new mongoose.Schema(
-  {
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product',
-      required: true
-    },
-    quantity: {
-      type: Number,
-      required: true,
-      min: 1,
-      default: 1,
-      validate: {
-        validator: Number.isInteger,
-        message: 'quantity must be an integer'
-      }
-    },
-    // Snapshot fields
-    price: {
-      type: Number,
-      required: true,
-      min: 0,
-      default: 0
-    },
-    name: {
-      type: String,
-      required: true,
-      trim: true,
-      default: ''
-    }
-  },
-  { _id: true }
-);
-
 const cartSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      unique: true,
-      index: true
+      unique: true
     },
-    items: [cartItemSchema],
+    items: [
+      {
+        productId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Product',
+          required: true
+        },
+        quantity: {
+          type: Number,
+          required: true,
+          min: 1,
+          default: 1
+        },
+        price: {
+          type: Number,
+          default: 0
+        },
+        name: {
+          type: String,
+          default: ''
+        }
+      }
+    ],
     totalPrice: {
       type: Number,
-      default: 0,
-      min: 0
+      default: 0
     }
   },
-  {
-    timestamps: true,
-    toJSON: { versionKey: false },
-    toObject: { versionKey: false }
-  }
+  { timestamps: true }
 );
 
 cartSchema.methods.calculateTotal = function () {
@@ -65,9 +47,9 @@ cartSchema.methods.calculateTotal = function () {
   }, 0);
 };
 
-cartSchema.pre('save', function (next) {
+// Promise-style pre hook (no next callback)
+cartSchema.pre('save', function () {
   this.calculateTotal();
-  next();
 });
 
 module.exports = mongoose.model('Cart', cartSchema);

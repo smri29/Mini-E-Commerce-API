@@ -1,50 +1,35 @@
 const mongoose = require('mongoose');
 
-const orderItemSchema = new mongoose.Schema(
-  {
-    productId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Product',
-      required: true
-    },
-    name: {
-      type: String,
-      required: true,
-      trim: true
-    },
-    price: {
-      type: Number,
-      required: true,
-      min: 0
-    },
-    quantity: {
-      type: Number,
-      required: true,
-      min: 1,
-      validate: {
-        validator: Number.isInteger,
-        message: 'quantity must be an integer'
-      }
-    }
-  },
-  { _id: false }
-);
-
 const orderSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
-      index: true
+      required: true
     },
-    items: {
-      type: [orderItemSchema],
-      validate: {
-        validator: (arr) => Array.isArray(arr) && arr.length > 0,
-        message: 'order must contain at least one item'
+    items: [
+      {
+        productId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'Product',
+          required: true
+        },
+        name: {
+          type: String,
+          default: ''
+        },
+        price: {
+          type: Number,
+          min: 0,
+          default: 0
+        },
+        quantity: {
+          type: Number,
+          required: true,
+          min: 1
+        }
       }
-    },
+    ],
     totalAmount: {
       type: Number,
       required: true,
@@ -53,8 +38,7 @@ const orderSchema = new mongoose.Schema(
     status: {
       type: String,
       enum: ['Pending', 'Shipped', 'Delivered', 'Cancelled'],
-      default: 'Pending',
-      index: true
+      default: 'Pending'
     },
     paymentStatus: {
       type: String,
@@ -62,21 +46,22 @@ const orderSchema = new mongoose.Schema(
       default: 'Pending'
     }
   },
-  {
-    timestamps: true,
-    toJSON: { versionKey: false },
-    toObject: { versionKey: false }
-  }
+  { timestamps: true }
 );
 
-// Guard consistency: keep total aligned with item snapshots
-orderSchema.pre('validate', function (next) {
-  if (Array.isArray(this.items) && this.items.length > 0) {
-    this.totalAmount = this.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+// Keep totalAmount consistent with items
+// Promise-style pre hook (no next callback)
+orderSchema.pre('validate', function () {
+  if (!Array.isArray(this.items)) {
+    this.totalAmount = 0;
+    return;
   }
-  next();
-});
 
-orderSchema.index({ userId: 1, createdAt: -1 });
+  this.totalAmount = this.items.reduce((sum, item) => {
+    const price = Number(item.price) || 0;
+    const qty = Number(item.quantity) || 0;
+    return sum + price * qty;
+  }, 0);
+});
 
 module.exports = mongoose.model('Order', orderSchema);
