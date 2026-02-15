@@ -9,11 +9,36 @@ const router = express.Router();
 router.post(
   '/register',
   [
-    body('name').notEmpty().withMessage('name is required').isLength({ min: 2 }).withMessage('name too short'),
-    body('email').isEmail().withMessage('valid email required'),
-    body('password').isLength({ min: 6 }).withMessage('password must be at least 6 chars'),
-    body('role').optional().isIn(['customer', 'admin']).withMessage('role must be customer or admin'),
-    body('adminKey').optional().isString().withMessage('adminKey must be a string')
+    body('name')
+      .trim()
+      .notEmpty()
+      .withMessage('name is required')
+      .isLength({ min: 2, max: 80 })
+      .withMessage('name must be between 2 and 80 characters'),
+
+    body('email')
+      .trim()
+      .isEmail()
+      .withMessage('valid email required')
+      .normalizeEmail(),
+
+    // bcrypt has practical 72-byte input limit; cap length to avoid silent truncation risks
+    body('password')
+      .isLength({ min: 6, max: 72 })
+      .withMessage('password must be between 6 and 72 characters'),
+
+    body('role')
+      .optional()
+      .trim()
+      .toLowerCase()
+      .isIn(['customer', 'admin'])
+      .withMessage('role must be customer or admin'),
+
+    body('adminKey')
+      .optional()
+      .trim()
+      .isString()
+      .withMessage('adminKey must be a string')
   ],
   validate,
   register
@@ -22,7 +47,11 @@ router.post(
 router.post(
   '/login',
   [
-    body('email').isEmail().withMessage('valid email required'),
+    body('email')
+      .trim()
+      .isEmail()
+      .withMessage('valid email required')
+      .normalizeEmail(),
     body('password').notEmpty().withMessage('password required')
   ],
   validate,

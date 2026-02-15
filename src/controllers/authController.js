@@ -4,6 +4,10 @@ const ApiError = require('../utils/apiError');
 const asyncHandler = require('../utils/asyncHandler');
 
 const signToken = (id) => {
+  if (!process.env.JWT_SECRET) {
+    throw new ApiError(500, 'JWT secret is not configured');
+  }
+
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN || '30d'
   });
@@ -18,6 +22,7 @@ exports.register = asyncHandler(async (req, res, next) => {
     throw new ApiError(400, 'Please provide name, email, and password');
   }
 
+  const normalizedName = String(name).trim();
   const normalizedEmail = String(email).toLowerCase().trim();
 
   const userExists = await User.findOne({ email: normalizedEmail });
@@ -44,7 +49,7 @@ exports.register = asyncHandler(async (req, res, next) => {
   }
 
   const user = await User.create({
-    name,
+    name: normalizedName,
     email: normalizedEmail,
     password,
     role: finalRole

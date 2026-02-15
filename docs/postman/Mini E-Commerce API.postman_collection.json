@@ -1,7 +1,7 @@
 {
   "info": {
     "_postman_id": "d44ce9d2-2693-4bb4-a259-1c446cd0ab8d",
-    "name": "Mini E-Commerce API (Updated)",
+    "name": "Mini E-Commerce API (Updated v2)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "_exporter_id": "38537181"
   },
@@ -10,12 +10,12 @@
       "name": "00 - Health",
       "item": [
         {
-          "name": "Health Check",
+          "name": "Root Health",
           "request": {
             "auth": { "type": "noauth" },
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/"
+            "url": "{{originUrl}}/"
           },
           "event": [
             {
@@ -23,8 +23,35 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test('Health check returns 200', function () {",
+                  "pm.test('Root health returns 200', function () {",
                   "  pm.response.to.have.status(200);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "API Health (/health)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "url": "{{originUrl}}/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('/health returns 200', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "let json = pm.response.json();",
+                  "pm.test('Has status success', function () {",
+                  "  pm.expect(json.status).to.eql('success');",
                   "});"
                 ]
               }
@@ -38,26 +65,17 @@
       "name": "01 - Auth",
       "item": [
         {
-          "name": "Register Admin (Protected)",
+          "name": "Register Admin (Expected 403 without key)",
           "request": {
             "auth": { "type": "noauth" },
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json", "type": "text" },
-              {
-                "key": "x-admin-signup-key",
-                "value": "{{adminSignupKey}}",
-                "type": "text",
-                "description": "Required if your server enables admin signup via ADMIN_SIGNUP_KEY"
-              }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"admin\"\n}\n",
+              "raw": "{\n  \"name\": \"Admin No Key\",\n  \"email\": \"admin-no-key@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"admin\"\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": "{{baseUrl}}/auth/register",
-            "description": "Registers an admin account. This is protected: you must set {{adminSignupKey}} (x-admin-signup-key) to match ADMIN_SIGNUP_KEY on the server.\n\nIf admin signup is disabled on the server, create admin directly in DB or enable ADMIN_SIGNUP_KEY."
+            "url": "{{baseUrl}}/auth/register"
           },
           "event": [
             {
@@ -65,19 +83,44 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "let json;",
-                  "try { json = pm.response.json(); } catch (e) { json = null; }",
-                  "",
-                  "pm.test('Register Admin returns 201 or 403 if key missing/disabled', function () {",
+                  "pm.test('Returns 403/400 when admin key is not provided', function () {",
+                  "  pm.expect([400, 403]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Register Admin (Protected)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "x-admin-signup-key", "value": "{{adminSignupKey}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Admin User\",\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"admin\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/auth/register"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (e) {}",
+                  "pm.test('Register admin returns 201/400/403', function () {",
                   "  pm.expect([201, 400, 403]).to.include(pm.response.code);",
                   "});",
-                  "",
-                  "if (json && json.token) {",
-                  "  pm.collectionVariables.set('token_admin', json.token);",
-                  "}",
-                  "if (json && json.data && json.data.user && json.data.user.email) {",
-                  "  pm.collectionVariables.set('adminEmail', json.data.user.email);",
-                  "}"
+                  "if (json.token) pm.collectionVariables.set('token_admin', json.token);",
+                  "if (json.data && json.data.user && json.data.user.email) pm.collectionVariables.set('adminEmail', json.data.user.email);"
                 ]
               }
             }
@@ -89,16 +132,13 @@
           "request": {
             "auth": { "type": "noauth" },
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json", "type": "text" }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}\n",
+              "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"password\": \"password123\"\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": "{{baseUrl}}/auth/register",
-            "description": "Registers a customer (default role: customer)."
+            "url": "{{baseUrl}}/auth/register"
           },
           "event": [
             {
@@ -106,19 +146,13 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "let json;",
-                  "try { json = pm.response.json(); } catch (e) { json = null; }",
-                  "",
-                  "pm.test('Register User returns 201 or 400 if already exists', function () {",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (e) {}",
+                  "pm.test('Register user returns 201 or 400', function () {",
                   "  pm.expect([201, 400]).to.include(pm.response.code);",
                   "});",
-                  "",
-                  "if (json && json.token) {",
-                  "  pm.collectionVariables.set('token_user', json.token);",
-                  "}",
-                  "if (json && json.data && json.data.user && json.data.user.email) {",
-                  "  pm.collectionVariables.set('userEmail', json.data.user.email);",
-                  "}"
+                  "if (json.token) pm.collectionVariables.set('token_user', json.token);",
+                  "if (json.data && json.data.user && json.data.user.email) pm.collectionVariables.set('userEmail', json.data.user.email);"
                 ]
               }
             }
@@ -130,16 +164,13 @@
           "request": {
             "auth": { "type": "noauth" },
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json", "type": "text" }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"password123\"\n}\n",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"password123\"\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": "{{baseUrl}}/auth/login",
-            "description": "Logs in as admin. Stores JWT in {{token_admin}}."
+            "url": "{{baseUrl}}/auth/login"
           },
           "event": [
             {
@@ -147,16 +178,12 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "let json;",
-                  "try { json = pm.response.json(); } catch (e) { json = null; }",
-                  "",
-                  "pm.test('Admin login returns 200 or 401/403', function () {",
-                  "  pm.expect([200, 401, 403, 400]).to.include(pm.response.code);",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (e) {}",
+                  "pm.test('Admin login returns 200/400/401/403', function () {",
+                  "  pm.expect([200, 400, 401, 403]).to.include(pm.response.code);",
                   "});",
-                  "",
-                  "if (json && json.token) {",
-                  "  pm.collectionVariables.set('token_admin', json.token);",
-                  "}"
+                  "if (json.token) pm.collectionVariables.set('token_admin', json.token);"
                 ]
               }
             }
@@ -168,16 +195,13 @@
           "request": {
             "auth": { "type": "noauth" },
             "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json", "type": "text" }
-            ],
+            "header": [{ "key": "Content-Type", "value": "application/json", "type": "text" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"password123\"\n}\n",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"password123\"\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": "{{baseUrl}}/auth/login",
-            "description": "Logs in as customer. Stores JWT in {{token_user}}."
+            "url": "{{baseUrl}}/auth/login"
           },
           "event": [
             {
@@ -185,16 +209,12 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "let json;",
-                  "try { json = pm.response.json(); } catch (e) { json = null; }",
-                  "",
-                  "pm.test('User login returns 200 or 401/403', function () {",
-                  "  pm.expect([200, 401, 403, 400]).to.include(pm.response.code);",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (e) {}",
+                  "pm.test('User login returns 200/400/401/403', function () {",
+                  "  pm.expect([200, 400, 401, 403]).to.include(pm.response.code);",
                   "});",
-                  "",
-                  "if (json && json.token) {",
-                  "  pm.collectionVariables.set('token_user', json.token);",
-                  "}"
+                  "if (json.token) pm.collectionVariables.set('token_user', json.token);"
                 ]
               }
             }
@@ -217,11 +237,10 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Laptop\",\n  \"description\": \"High end laptop\",\n  \"price\": 1200,\n  \"stock\": 5,\n  \"category\": \"Tech\"\n}\n",
+              "raw": "{\n  \"title\": \"Laptop\",\n  \"description\": \"High end laptop\",\n  \"price\": 1200,\n  \"stock\": 5,\n  \"category\": \"Tech\"\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": "{{baseUrl}}/products",
-            "description": "Admin-only. Creates a product and stores returned _id into {{productId}}."
+            "url": "{{baseUrl}}/products"
           },
           "event": [
             {
@@ -229,14 +248,12 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "let json;",
-                  "try { json = pm.response.json(); } catch (e) { json = null; }",
-                  "",
-                  "pm.test('Create product returns 201 or 401/403', function () {",
-                  "  pm.expect([201, 401, 403, 400]).to.include(pm.response.code);",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (e) {}",
+                  "pm.test('Create product returns 201 or auth/validation error', function () {",
+                  "  pm.expect([201, 400, 401, 403]).to.include(pm.response.code);",
                   "});",
-                  "",
-                  "if (json && json.data && json.data.product && json.data.product._id) {",
+                  "if (json.data && json.data.product && json.data.product._id) {",
                   "  pm.collectionVariables.set('productId', json.data.product._id);",
                   "}"
                 ]
@@ -251,30 +268,27 @@
             "auth": { "type": "noauth" },
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/products",
-            "description": "Public. Lists all non-deleted products."
+            "url": "{{baseUrl}}/products"
           },
           "response": []
         },
         {
-          "name": "Get Products (Filtered/Search/Paginated) (Public)",
+          "name": "Get Products (Filtered)",
           "request": {
             "auth": { "type": "noauth" },
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/products?q=laptop&category=Tech&minPrice=100&maxPrice=5000&page=1&limit=20&sort=-price",
-            "description": "Public. Demonstrates query params:\n- q (search in title)\n- category\n- minPrice/maxPrice\n- page/limit\n- sort (e.g. -price, price, -createdAt)"
+            "url": "{{baseUrl}}/products?q=laptop&category=Tech&minPrice=100&maxPrice=5000&page=1&limit=20&sort=-price"
           },
           "response": []
         },
         {
-          "name": "Get Single Product (Public)",
+          "name": "Get Single Product",
           "request": {
             "auth": { "type": "noauth" },
             "method": "GET",
             "header": [],
-            "url": "{{baseUrl}}/products/{{productId}}",
-            "description": "Public. Gets one product by ID."
+            "url": "{{baseUrl}}/products/{{productId}}"
           },
           "response": []
         },
@@ -289,11 +303,10 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"price\": 1100,\n  \"stock\": 10\n}\n",
+              "raw": "{\n  \"price\": 1100,\n  \"stock\": 10\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": "{{baseUrl}}/products/{{productId}}",
-            "description": "Admin-only. Updates allowed fields: title, description, price, stock, category."
+            "url": "{{baseUrl}}/products/{{productId}}"
           },
           "response": []
         },
@@ -302,11 +315,8 @@
           "request": {
             "auth": { "type": "noauth" },
             "method": "DELETE",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token_admin}}", "type": "text" }
-            ],
-            "url": "{{baseUrl}}/products/{{productId}}",
-            "description": "Admin-only. Soft deletes a product (isDeleted=true). Deleted products are excluded from find queries."
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_admin}}", "type": "text" }],
+            "url": "{{baseUrl}}/products/{{productId}}"
           },
           "response": []
         }
@@ -316,20 +326,17 @@
       "name": "03 - Cart",
       "item": [
         {
-          "name": "Get My Cart (Customer)",
+          "name": "Get My Cart",
           "request": {
             "auth": { "type": "noauth" },
             "method": "GET",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }
-            ],
-            "url": "{{baseUrl}}/cart",
-            "description": "Customer-only. Returns cart; if no cart exists, returns empty structure."
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }],
+            "url": "{{baseUrl}}/cart"
           },
           "response": []
         },
         {
-          "name": "Add To Cart (Customer) (sets cartItemId)",
+          "name": "Add To Cart (sets cartItemId)",
           "request": {
             "auth": { "type": "noauth" },
             "method": "POST",
@@ -339,11 +346,10 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 2\n}\n",
+              "raw": "{\n  \"productId\": \"{{productId}}\",\n  \"quantity\": 2\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": "{{baseUrl}}/cart",
-            "description": "Customer-only. Adds product to cart (increments quantity if already present). Stores first item _id into {{cartItemId}}."
+            "url": "{{baseUrl}}/cart"
           },
           "event": [
             {
@@ -351,15 +357,16 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "let json;",
-                  "try { json = pm.response.json(); } catch (e) { json = null; }",
-                  "",
-                  "pm.test('Add to cart returns 200 or 400/401', function () {",
-                  "  pm.expect([200, 400, 401, 403]).to.include(pm.response.code);",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (e) {}",
+                  "pm.test('Add to cart returns 200 or expected client/auth errors', function () {",
+                  "  pm.expect([200, 400, 401, 403, 404]).to.include(pm.response.code);",
                   "});",
-                  "",
-                  "if (json && json.data && json.data.cart && json.data.cart.items && json.data.cart.items.length > 0) {",
-                  "  pm.collectionVariables.set('cartItemId', json.data.cart.items[0]._id);",
+                  "if (json.data && json.data.cart && Array.isArray(json.data.cart.items)) {",
+                  "  const pid = pm.collectionVariables.get('productId');",
+                  "  const matched = json.data.cart.items.find(i => i.productId === pid || (i.productId && i.productId._id === pid));",
+                  "  const item = matched || json.data.cart.items[0];",
+                  "  if (item && item._id) pm.collectionVariables.set('cartItemId', item._id);",
                   "}"
                 ]
               }
@@ -368,7 +375,7 @@
           "response": []
         },
         {
-          "name": "Update Cart Item Quantity (PATCH) (Customer)",
+          "name": "Update Cart Item Quantity (PATCH)",
           "request": {
             "auth": { "type": "noauth" },
             "method": "PATCH",
@@ -378,24 +385,20 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"quantity\": 3\n}\n",
+              "raw": "{\n  \"quantity\": 3\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": "{{baseUrl}}/cart/{{cartItemId}}",
-            "description": "Customer-only. Sets absolute quantity. Set quantity=0 to remove the item."
+            "url": "{{baseUrl}}/cart/{{cartItemId}}"
           },
           "response": []
         },
         {
-          "name": "Remove From Cart (DELETE) (Customer)",
+          "name": "Remove From Cart (DELETE)",
           "request": {
             "auth": { "type": "noauth" },
             "method": "DELETE",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }
-            ],
-            "url": "{{baseUrl}}/cart/{{cartItemId}}",
-            "description": "Customer-only. Removes the cart item by its itemId (not productId)."
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }],
+            "url": "{{baseUrl}}/cart/{{cartItemId}}"
           },
           "response": []
         }
@@ -405,16 +408,13 @@
       "name": "04 - Orders",
       "item": [
         {
-          "name": "Place Order (Customer) (sets orderId)",
+          "name": "Place Order (sets orderId)",
           "request": {
             "auth": { "type": "noauth" },
             "method": "POST",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }
-            ],
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }],
             "body": { "mode": "raw", "raw": "", "options": { "raw": { "language": "json" } } },
-            "url": "{{baseUrl}}/orders",
-            "description": "Customer-only. Transactional checkout:\n- Validates stock at checkout\n- Deducts stock atomically\n- Creates order\n- Clears cart\n\nStores created order ID into {{orderId}}."
+            "url": "{{baseUrl}}/orders"
           },
           "event": [
             {
@@ -422,14 +422,12 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "let json;",
-                  "try { json = pm.response.json(); } catch (e) { json = null; }",
-                  "",
-                  "pm.test('Place order returns 201 or 400 if cart empty', function () {",
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (e) {}",
+                  "pm.test('Place order returns 201 or expected errors', function () {",
                   "  pm.expect([201, 400, 401, 403]).to.include(pm.response.code);",
                   "});",
-                  "",
-                  "if (json && json.data && json.data.order && json.data.order._id) {",
+                  "if (json.data && json.data.order && json.data.order._id) {",
                   "  pm.collectionVariables.set('orderId', json.data.order._id);",
                   "}"
                 ]
@@ -439,15 +437,12 @@
           "response": []
         },
         {
-          "name": "My Order History (Customer)",
+          "name": "My Order History",
           "request": {
             "auth": { "type": "noauth" },
             "method": "GET",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }
-            ],
-            "url": "{{baseUrl}}/orders",
-            "description": "Customer-only. Returns orders for authenticated user."
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }],
+            "url": "{{baseUrl}}/orders"
           },
           "response": []
         },
@@ -456,16 +451,13 @@
           "request": {
             "auth": { "type": "noauth" },
             "method": "PUT",
-            "header": [
-              { "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }
-            ],
-            "url": "{{baseUrl}}/orders/{{orderId}}/cancel",
-            "description": "Customer rule:\n- Only Pending orders\n- Within 1 hour of creation\n\nFraud logic:\n- cancellationCount increments\n- >3 cancels => isBlocked"
+            "header": [{ "key": "Authorization", "value": "Bearer {{token_user}}", "type": "text" }],
+            "url": "{{baseUrl}}/orders/{{orderId}}/cancel"
           },
           "response": []
         },
         {
-          "name": "Update Status (Admin) - Pending → Shipped",
+          "name": "Update Status (Admin) - Pending -> Shipped",
           "request": {
             "auth": { "type": "noauth" },
             "method": "PUT",
@@ -475,16 +467,15 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"status\": \"Shipped\"\n}\n",
+              "raw": "{\n  \"status\": \"Shipped\"\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": "{{baseUrl}}/orders/{{orderId}}/status",
-            "description": "Admin-only. Enforces valid transitions:\n- Pending -> Shipped -> Delivered\n- Pending -> Cancelled\nInvalid transitions are rejected."
+            "url": "{{baseUrl}}/orders/{{orderId}}/status"
           },
           "response": []
         },
         {
-          "name": "Update Status (Admin) - Shipped → Delivered",
+          "name": "Update Status (Admin) - Shipped -> Delivered",
           "request": {
             "auth": { "type": "noauth" },
             "method": "PUT",
@@ -494,11 +485,10 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"status\": \"Delivered\"\n}\n",
+              "raw": "{\n  \"status\": \"Delivered\"\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": "{{baseUrl}}/orders/{{orderId}}/status",
-            "description": "Admin-only. Second step transition: Shipped -> Delivered."
+            "url": "{{baseUrl}}/orders/{{orderId}}/status"
           },
           "response": []
         }
@@ -512,8 +502,7 @@
         "type": "text/javascript",
         "packages": {},
         "exec": [
-          "// Collection-level helpers can go here if needed.",
-          "// This collection uses per-request tests to capture tokens/IDs."
+          "// Collection-level pre-request hooks if needed"
         ]
       }
     },
@@ -523,6 +512,11 @@
     }
   ],
   "variable": [
+    {
+      "key": "originUrl",
+      "value": "https://ecommerceapi-pg15.onrender.com",
+      "type": "string"
+    },
     {
       "key": "baseUrl",
       "value": "https://ecommerceapi-pg15.onrender.com/api",

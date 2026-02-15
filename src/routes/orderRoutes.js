@@ -10,8 +10,11 @@ const router = express.Router();
 
 router.use(protect);
 
-router.route('/').post(createOrder).get(getMyOrders);
+// Customer-only order operations
+router.post('/', authorize('customer'), createOrder);
+router.get('/', authorize('customer'), getMyOrders);
 
+// Cancel can be triggered by customer (own order) or admin (enforced in controller)
 router.put(
   '/:id/cancel',
   [param('id').isMongoId().withMessage('invalid order id')],
@@ -19,12 +22,17 @@ router.put(
   cancelOrder
 );
 
+// Admin status management
 router.put(
   '/:id/status',
   [
     authorize('admin'),
     param('id').isMongoId().withMessage('invalid order id'),
-    body('status').isIn(['Pending', 'Shipped', 'Delivered', 'Cancelled']).withMessage('invalid status')
+    body('status')
+      .exists({ checkFalsy: true })
+      .withMessage('status is required')
+      .isIn(['Pending', 'Shipped', 'Delivered', 'Cancelled'])
+      .withMessage('invalid status')
   ],
   validate,
   updateStatus

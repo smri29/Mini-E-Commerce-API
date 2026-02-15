@@ -7,6 +7,8 @@ const toNumber = (v) => {
   return Number.isFinite(n) ? n : undefined;
 };
 
+const escapeRegex = (s) => String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
 // @desc    Get all products (with filters)
 // @route   GET /api/products
 // @access  Public
@@ -24,15 +26,23 @@ exports.getAllProducts = asyncHandler(async (req, res, next) => {
   const filter = {};
 
   if (q) {
-    filter.title = { $regex: String(q), $options: 'i' };
+    filter.title = { $regex: escapeRegex(String(q)), $options: 'i' };
   }
 
   if (category) {
-    filter.category = { $regex: `^${String(category).trim()}$`, $options: 'i' };
+    filter.category = {
+      $regex: `^${escapeRegex(String(category).trim())}$`,
+      $options: 'i'
+    };
   }
 
   const minP = toNumber(minPrice);
   const maxP = toNumber(maxPrice);
+
+  if (minP !== undefined && maxP !== undefined && minP > maxP) {
+    throw new ApiError(400, 'minPrice cannot be greater than maxPrice');
+  }
+
   if (minP !== undefined || maxP !== undefined) {
     filter.price = {};
     if (minP !== undefined) filter.price.$gte = minP;
@@ -43,9 +53,20 @@ exports.getAllProducts = asyncHandler(async (req, res, next) => {
   const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
   const skip = (pageNum - 1) * limitNum;
 
-  const sortBy = String(sort)
-    .split(',')
-    .join(' ');
+  const allowedSortFields = new Set(['createdAt', 'price', 'title', 'stock', 'category']);
+  const sortBy =
+    String(sort)
+      .split(',')
+      .map((f) => f.trim())
+      .filter(Boolean)
+      .map((f) => {
+        const isDesc = f.startsWith('-');
+        const field = isDesc ? f.slice(1) : f;
+        if (!allowedSortFields.has(field)) return null;
+        return isDesc ? `-${field}` : field;
+      })
+      .filter(Boolean)
+      .join(' ') || '-createdAt';
 
   const [total, products] = await Promise.all([
     Product.countDocuments(filter),
@@ -133,7 +154,6 @@ exports.deleteProduct = asyncHandler(async (req, res, next) => {
   if (!product) {
     throw new ApiError(404, 'Product not found');
   }
-
 
   res.status(200).json({
     status: 'success',

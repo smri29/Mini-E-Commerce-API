@@ -6,7 +6,15 @@ const User = require('../models/User');
 const asyncHandler = require('../utils/asyncHandler');
 const ApiError = require('../utils/apiError');
 
+const getEnvInt = (name, fallback) => {
+  const n = Number.parseInt(process.env[name], 10);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+};
+
 const ONE_HOUR_MS = 60 * 60 * 1000;
+const FRAUD_WINDOW_HOURS = getEnvInt('FRAUD_WINDOW_HOURS', 24);
+const MAX_CANCELLATIONS = getEnvInt('MAX_CANCELLATIONS', 3);
+const FRAUD_WINDOW_MS = FRAUD_WINDOW_HOURS * ONE_HOUR_MS;
 
 const allowedTransitions = {
   Pending: ['Shipped', 'Cancelled'],
@@ -15,14 +23,29 @@ const allowedTransitions = {
   Cancelled: []
 };
 
+const restockItems = async (items, session) => {
+  for (const item of items) {
+    const result = await Product.updateOne(
+      { _id: item.productId },
+      { $inc: { stock: item.quantity } },
+      { session }
+    );
+
+    if (!result || result.matchedCount === 0) {
+      throw new ApiError(409, `Unable to restock item ${item.productId}. Product not found.`);
+    }
+  }
+};
+
 // @desc    Place an order (Transactional)
 // @route   POST /api/orders
 // @access  Private (Customer)
 exports.createOrder = asyncHandler(async (req, res, next) => {
   const session = await mongoose.startSession();
-  session.startTransaction();
 
   try {
+    session.startTransaction();
+
     const cart = await Cart.findOne({ userId: req.user._id }).session(session);
     if (!cart || cart.items.length === 0) {
       throw new ApiError(400, 'Cart is empty');
@@ -79,16 +102,18 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
     await cart.save({ session });
 
     await session.commitTransaction();
-    session.endSession();
 
     res.status(201).json({
       status: 'success',
       data: { order: created[0] }
     });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     throw error;
+  } finally {
+    session.endSession();
   }
 });
 
@@ -110,11 +135,11 @@ exports.getMyOrders = asyncHandler(async (req, res, next) => {
 // @access  Private
 exports.cancelOrder = asyncHandler(async (req, res, next) => {
   const session = await mongoose.startSession();
-  session.startTransaction();
 
   try {
-    const order = await Order.findById(req.params.id).session(session);
+    session.startTransaction();
 
+    const order = await Order.findById(req.params.id).session(session);
     if (!order) throw new ApiError(404, 'Order not found');
 
     const isAdmin = req.user.role === 'admin';
@@ -138,54 +163,52 @@ exports.cancelOrder = asyncHandler(async (req, res, next) => {
     }
 
     // Restock products
-    for (const item of order.items) {
-      await Product.findByIdAndUpdate(
-        item.productId,
-        { $inc: { stock: item.quantity } },
-        { session }
-      );
-    }
+    await restockItems(order.items, session);
 
     order.status = 'Cancelled';
     await order.save({ session });
 
     // Fraud logic: only penalize when customer cancels their own order
+    let suspended = false;
     if (!isAdmin && isOwner) {
       const user = await User.findById(order.userId).session(session);
+      if (!user) throw new ApiError(404, 'User not found');
+
+      const now = Date.now();
+      const last = user.lastCancellationTime ? new Date(user.lastCancellationTime).getTime() : null;
+
+      // Rolling-window reset
+      if (!last || now - last > FRAUD_WINDOW_MS) {
+        user.cancellationCount = 0;
+      }
 
       user.cancellationCount += 1;
-      user.lastCancellationTime = Date.now();
+      user.lastCancellationTime = new Date(now);
 
-      if (user.cancellationCount > 3) {
+      if (user.cancellationCount > MAX_CANCELLATIONS) {
         user.isBlocked = true;
+        suspended = true;
       }
 
       await user.save({ session });
-
-      await session.commitTransaction();
-      session.endSession();
-
-      return res.status(200).json({
-        status: 'success',
-        message: user.isBlocked
-          ? 'Order cancelled. Account suspended due to excessive cancellations.'
-          : 'Order cancelled successfully',
-        data: { order }
-      });
     }
 
     await session.commitTransaction();
-    session.endSession();
 
-    res.status(200).json({
+    return res.status(200).json({
       status: 'success',
-      message: 'Order cancelled successfully',
+      message: suspended
+        ? 'Order cancelled. Account suspended due to excessive cancellations.'
+        : 'Order cancelled successfully',
       data: { order }
     });
   } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     throw error;
+  } finally {
+    session.endSession();
   }
 });
 
@@ -206,31 +229,28 @@ exports.updateStatus = asyncHandler(async (req, res, next) => {
   // If admin cancels a pending order, restock (same as cancel logic but without fraud penalty)
   if (status === 'Cancelled' && order.status === 'Pending') {
     const session = await mongoose.startSession();
-    session.startTransaction();
 
     try {
+      session.startTransaction();
+
       const fresh = await Order.findById(req.params.id).session(session);
       if (!fresh) throw new ApiError(404, 'Order not found');
 
-      for (const item of fresh.items) {
-        await Product.findByIdAndUpdate(
-          item.productId,
-          { $inc: { stock: item.quantity } },
-          { session }
-        );
-      }
+      await restockItems(fresh.items, session);
 
       fresh.status = 'Cancelled';
       const saved = await fresh.save({ session });
 
       await session.commitTransaction();
-      session.endSession();
 
       return res.status(200).json({ status: 'success', data: { order: saved } });
     } catch (e) {
-      await session.abortTransaction();
-      session.endSession();
+      if (session.inTransaction()) {
+        await session.abortTransaction();
+      }
       throw e;
+    } finally {
+      session.endSession();
     }
   }
 

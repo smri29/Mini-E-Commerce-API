@@ -1,11 +1,20 @@
 const ApiError = require('../utils/apiError');
 
 const authorize = (...roles) => {
+  const allowedRoles = roles.map((r) => String(r).toLowerCase().trim());
+
   return (req, res, next) => {
-    if (!roles.includes(req.user.role)) {
+    if (!req.user) {
+      return next(new ApiError(401, 'Not authorized to access this route'));
+    }
+
+    const userRole = String(req.user.role || '').toLowerCase().trim();
+
+    if (!allowedRoles.includes(userRole)) {
       return next(new ApiError(403, 'You do not have permission to perform this action'));
     }
-    next();
+
+    return next();
   };
 };
 

@@ -10,45 +10,87 @@ const ApiError = require('./utils/apiError');
 
 const app = express();
 
-// If deployed behind proxies (Render/Heroku/etc.), helps rate limiter + IP-based logic
+// If deployed behind proxies (Render/Heroku/Nginx), helps IP-based middlewares
 app.set('trust proxy', 1);
+app.disable('x-powered-by');
 
 // 1) Security + Parsing
 app.use(helmet());
-app.use(cors());
-app.use(express.json({ limit: '10kb' })); // basic payload hardening
+
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map((o) => o.trim())
+  : ['*'];
+
+app.use(
+  cors({
+    origin(origin, callback) {
+      // Allow non-browser clients / Postman (no origin)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: true
+  })
+);
+
+app.use(express.json({ limit: '10kb' }));
 app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 app.use(mongoSanitize());
 
-// Rate limiting (lightweight bonus hardening)
-const limiter = rateLimit({
+// 2) Rate limiting
+const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200, // 200 requests / 15 minutes / IP
+  max: process.env.NODE_ENV === 'test' ? 10000 : 200,
   standardHeaders: true,
   legacyHeaders: false,
+  message: {
+    status: 'fail',
+    message: 'Too many requests from this IP, please try again later.'
+  }
 });
-app.use('/api', limiter);
 
-// Logging
-app.use(morgan('dev'));
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: process.env.NODE_ENV === 'test' ? 10000 : 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: 'fail',
+    message: 'Too many authentication attempts, please try again later.'
+  }
+});
 
-// 2) Routes
+app.use('/api', apiLimiter);
+app.use('/api/auth', authLimiter);
+
+// 3) Logging
+if (process.env.NODE_ENV !== 'test') {
+  app.use(morgan('dev'));
+}
+
+// 4) Routes
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/products', require('./routes/productRoutes'));
 app.use('/api/cart', require('./routes/cartRoutes'));
 app.use('/api/orders', require('./routes/orderRoutes'));
 
-// 3) Health Check
+// 5) Health checks
 app.get('/', (req, res) => {
   res.status(200).json({ status: 'success', message: 'Mini E-Commerce API is running' });
 });
 
-// 4) 404
-app.all(/(.*)/, (req, res, next) => {
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'success', uptime: process.uptime() });
+});
+
+// 6) 404 handler
+app.all('*', (req, res, next) => {
   next(new ApiError(404, `Can't find ${req.originalUrl} on this server!`));
 });
 
-// 5) Global Error Handler
+// 7) Global error handler
 app.use(errorHandler);
 
 module.exports = app;

@@ -1,6 +1,7 @@
 # Mini E-Commerce API 🚀
 
-A production-style REST API for a mini e-commerce platform. It covers core backend workflows: authentication, role-based access control, product management, cart operations, and transactional order processing with stock safety.
+A production-style REST API for a mini e-commerce platform.  
+It covers core backend workflows: authentication, role-based access control, product management, cart operations, and transactional order processing with stock safety.
 
 Built with **Node.js**, **Express**, and **MongoDB (Mongoose)**.
 
@@ -8,13 +9,10 @@ Built with **Node.js**, **Express**, and **MongoDB (Mongoose)**.
 
 ## Live API Deployment
 
-- **Base URL (deployed):** https://ecommerceapi-pg15.onrender.com
+- **Base URL (deployed):** `https://ecommerceapi-pg15.onrender.com`
 - **API Prefix:** `/api`
 
 Quick check:
-
-- Live (deployed):
-  - https://ecommerceapi-pg15.onrender.com/api/products
 
 ```bash
 curl -s https://ecommerceapi-pg15.onrender.com/api/products
@@ -24,38 +22,46 @@ curl -s https://ecommerceapi-pg15.onrender.com/api/products
 
 ## What This Project Includes
 
-This backend is designed to be **simple but correct**: consistent stock updates, safe order placement, and practical guardrails against cancellation abuse.
+This backend is designed to be simple but correct:
+
+- clean auth + RBAC boundaries
+- safe stock handling
+- transactional checkout
+- guarded order cancellation logic
+- practical API hardening
 
 ---
 
 ## Key Features
 
-### Authentication & Authorization
+## 1) Authentication & Authorization
 
-* JWT-based authentication
-* RBAC with two roles: `admin` and `customer`
+- JWT-based authentication
+- RBAC with two roles: `admin`, `customer`
+- Protected-route enforcement via auth middleware
+- Blocked accounts are denied protected endpoints
 
-**Protected admin registration (prevents role escalation):**
+### Protected Admin Registration (role escalation guard)
 
-* Customers cannot self-upgrade to admin
-* Admin registration can be protected with `ADMIN_SIGNUP_KEY` (optional)
+Customers cannot self-upgrade to admin.
 
-  * When enabled, admin signup requires either:
+If `ADMIN_SIGNUP_KEY` is configured, admin signup requires a valid key via:
 
-    * `x-admin-signup-key` header, or
-    * `adminKey` in the request body
+- `x-admin-signup-key` header, or
+- `adminKey` in request body
 
-### Product Management
+---
 
-* Admin-only product CRUD
-* Soft delete (`isDeleted`) to preserve historical order records
-* Public product listing supports:
+## 2) Product Management
 
-  * Search (`q`)
-  * Category filter (`category`)
-  * Price filters (`minPrice`, `maxPrice`)
-  * Pagination (`page`, `limit`)
-  * Sorting (`sort`, e.g. `-price`, `price`, `-createdAt`)
+- Admin-only product CRUD
+- Soft delete (`isDeleted`) to preserve order history integrity
+- Public product listing supports:
+  - search (`q`)
+  - category filter (`category`)
+  - price filter (`minPrice`, `maxPrice`)
+  - pagination (`page`, `limit`)
+  - sorting (`sort`, e.g. `-price`, `price`, `-createdAt`)
 
 Example:
 
@@ -63,52 +69,70 @@ Example:
 curl "http://localhost:5000/api/products?q=laptop&category=Tech&minPrice=100&maxPrice=2000&page=1&limit=20&sort=-price"
 ```
 
-### Cart
+---
 
-* One persistent cart per user
-* Add items (supports incrementing quantity)
-* Update item quantity via `PATCH` (set absolute quantity; `0` removes item)
-* Remove cart items via `DELETE`
-* Cart totals are recalculated server-side
+## 3) Cart
 
-### Orders
+- One persistent cart per user
+- Add items (auto-increment quantity if product already exists in cart)
+- Update quantity via `PATCH /api/cart/:itemId` (absolute quantity)
+- Quantity `0` removes item
+- Server-side total recalculation on save
 
-* Transactional order placement using **MongoDB transactions (ACID)**
+---
 
-  * Replica set required (MongoDB Atlas works; local MongoDB needs replica set enabled)
-* Checkout verifies stock in real-time and prevents negative inventory
-* Orders snapshot item `name` / `price` / `quantity` at purchase time
-* Admin can update order status
+## 4) Orders
 
-> Note: The current code accepts any allowed enum value for order status.
-> If you want strict status transitions (e.g., `Pending → Shipped → Delivered`), add transition validation in `orderController.updateStatus`.
+- Transactional checkout using MongoDB transactions (ACID)
+- Stock validated at checkout and decremented atomically
+- Order item snapshot stores `name`, `price`, `quantity`
+- Cart is cleared only after successful transaction commit
 
-### Fraud Prevention (Bonus)
+### Status transition rules
 
-* Anti stock-hoarding throttling:
+Only valid transitions are allowed:
 
-  * Users cancelling orders repeatedly (>3) are automatically flagged and blocked
-* Cancellation behavior:
+- `Pending -> Shipped`
+- `Shipped -> Delivered`
+- `Pending -> Cancelled`
 
-  * Cancellation is blocked for `Shipped` / `Delivered` orders
-  * Admin can cancel eligible orders without triggering fraud penalties
+Invalid transitions are rejected.
 
-### Security Hardening (Bonus)
+---
 
-* Rate limiting on `/api` routes
-* Mongo query operator sanitization (basic injection prevention)
-* Helmet security headers
+## 5) Cancellation & Anti-Abuse Logic
+
+Customer cancellation rules:
+
+- only `Pending` orders
+- only within 1 hour of creation
+
+Additional rules:
+
+- cannot cancel `Shipped` or `Delivered` orders
+- repeated cancellations increase `cancellationCount`
+- excessive cancellations can flag/block the account
+
+---
+
+## 6) Security Hardening
+
+- `helmet` security headers
+- rate limiting on `/api`
+- `express-mongo-sanitize` for basic query operator sanitization
+- payload size limits on JSON/urlencoded input
 
 ---
 
 ## Tech Stack
 
-* **Runtime:** Node.js
-* **Framework:** Express.js
-* **Database:** MongoDB (Mongoose ODM)
-* **Auth:** JWT + Bcrypt
-* **Validation:** Express-Validator
-* **Security:** Helmet, Express Rate Limit, Express Mongo Sanitize
+- **Runtime:** Node.js
+- **Framework:** Express.js
+- **Database:** MongoDB (Mongoose)
+- **Auth:** JWT + Bcrypt
+- **Validation:** express-validator
+- **Testing:** Jest + Supertest + mongodb-memory-server
+- **Security:** Helmet, Express Rate Limit, Express Mongo Sanitize
 
 ---
 
@@ -116,14 +140,14 @@ curl "http://localhost:5000/api/products?q=laptop&category=Tech&minPrice=100&max
 
 ```text
 src/
-├── config/           # Database connection & config
-├── controllers/      # Business logic (req/res handling)
-├── middleware/       # Auth, validation, error handling, role checks
-├── models/           # Mongoose schemas (User, Product, Cart, Order)
-├── routes/           # Route definitions
-├── utils/            # Helpers (async wrapper, custom errors)
-├── app.js            # Express app setup (middleware + routes)
-└── server.js         # Entry point (server boot)
+├── config/           # DB connection
+├── controllers/      # Business logic
+├── middleware/       # Auth, validation, error handling, RBAC
+├── models/           # User, Product, Cart, Order schemas
+├── routes/           # Route modules
+├── utils/            # ApiError, async wrapper, helpers
+├── app.js            # Express app config + routes
+└── server.js         # Process bootstrap
 ```
 
 ---
@@ -155,7 +179,7 @@ erDiagram
 
     CART {
         ObjectId userId
-        Array items "productId, quantity, price snapshot"
+        Array items "productId, quantity, price/name snapshot"
         Number totalPrice
     }
 
@@ -170,35 +194,41 @@ erDiagram
 
 ---
 
-## Key Architectural Decisions
+## Architectural Decisions
 
-### 1) Transactions for Checkout (ACID)
+### 1) Transactional Checkout (ACID)
 
-* Prevents partial writes and inconsistent inventory
-* Uses `mongoose.startSession()` so stock deduction, order creation, and cart clearing happen atomically
+Checkout operations happen in one transaction:
+
+- stock deduction
+- order creation
+- cart clearing
+
+Prevents partial writes and inconsistent inventory.
 
 ### 2) Snapshotting Order Items
 
-* Order history should not change if product title/price changes later
-* Orders store `name`, `price`, and `quantity` in `Order.items[]`
+Order history remains stable even if product data changes later.
 
 ### 3) Stock Safety
 
-* Stock is re-validated at checkout and deducted inside the same transaction
-* Prevents negative inventory during concurrent checkouts
+Stock is validated and updated atomically to prevent negative inventory in concurrent scenarios.
 
-### 4) Cancellation Throttling
+### 4) Role Escalation Guard
 
-* Repeated cancellations can be used to hoard stock
-* Tracks `cancellationCount` and blocks users after excessive cancellations
+Admin account creation is controlled via server-side secret (`ADMIN_SIGNUP_KEY`).
+
+### 5) Cancellation Abuse Control
+
+Repeated cancellations can trigger account blocking.
 
 ---
 
 ## Assumptions
 
-* Stock is **not reserved** when added to cart; stock is deducted at checkout
-* Prices are numeric in a single currency unit
-* Products use **soft delete** to preserve past order integrity
+- Stock is not reserved on add-to-cart; it is verified/deducted at checkout.
+- Prices are stored as numeric values in one currency unit.
+- Soft-deleted products remain hidden from normal product queries.
 
 ---
 
@@ -206,8 +236,8 @@ erDiagram
 
 ### Prerequisites
 
-* Node.js (v14+ recommended)
-* MongoDB (Local or Atlas)
+- Node.js (v14+ recommended)
+- MongoDB (Atlas or local replica-set-enabled instance for transactions)
 
 ### Installation
 
@@ -218,22 +248,24 @@ git clone https://github.com/smri29/Mini-E-Commerce-API.git
 cd Mini-E-Commerce-API
 ```
 
-2. Install:
+2. Install dependencies:
 
 ```bash
 npm install
 ```
 
-3. Create `.env` in the project root:
+3. Create `.env` in project root:
 
 ```env
 PORT=5000
 MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_super_secret_key_123
 JWT_EXPIRES_IN=30d
-ADMIN_SIGNUP_KEY=some_long_random_secret  # optional (only if you want protected admin signup)
+ADMIN_SIGNUP_KEY=some_long_random_secret
 NODE_ENV=development
 ```
+
+> If `ADMIN_SIGNUP_KEY` is omitted, admin signup protection behavior depends on controller logic.
 
 4. Run:
 
@@ -245,66 +277,65 @@ npm run dev
 
 ## API Documentation
 
-### Postman Collection
+## Postman Collection
 
-* **File:** `docs/postman/Mini E-Commerce API.postman_collection.json`
-* **Usage guide:** `docs/POSTMAN.md`
+- Collection file: `docs/postman/Mini E-Commerce API.postman_collection.json`
+- Usage guide: `docs/POSTMAN.md`
 
 ---
 
 ## Endpoints
 
-### Auth
+## Health
 
-* `POST /api/auth/register` — Register a user
+- `GET /` — service status check
 
-  * Default role: `customer`
-  * Admin signup may require `x-admin-signup-key` (or `adminKey`) if enabled
-* `POST /api/auth/login` — Login and receive JWT
+## Auth
 
-### Products
+- `POST /api/auth/register` — Register user (default role: customer)
+- `POST /api/auth/login` — Login and receive JWT
 
-* `GET /api/products` — List products (filters/search/pagination)
+## Products
 
-  * Query: `q`, `category`, `minPrice`, `maxPrice`, `page`, `limit`, `sort`
-* `GET /api/products/:id` — Get single product
-* `POST /api/products` — Create product (**Admin only**)
-* `PUT /api/products/:id` — Update product (**Admin only**)
-* `DELETE /api/products/:id` — Soft delete product (**Admin only**)
+- `GET /api/products` — List products (search/filter/pagination/sort)
+- `GET /api/products/:id` — Get single product
+- `POST /api/products` — Create product (**Admin only**)
+- `PUT /api/products/:id` — Update product (**Admin only**)
+- `DELETE /api/products/:id` — Soft delete product (**Admin only**)
 
-### Cart (Customer)
+## Cart
 
-* `GET /api/cart` — View my cart
-* `POST /api/cart` — Add item (increments quantity)
-* `PATCH /api/cart/:itemId` — Set quantity (`0` removes item)
-* `DELETE /api/cart/:itemId` — Remove item
+- `GET /api/cart` — Get my cart
+- `POST /api/cart` — Add item
+- `PATCH /api/cart/:itemId` — Set item quantity (`0` removes item)
+- `DELETE /api/cart/:itemId` — Remove cart item
 
-### Orders
+## Orders
 
-* `POST /api/orders` — Place order (**Transactional**)
-* `GET /api/orders` — My order history
-* `PUT /api/orders/:id/cancel` — Cancel order (rules apply)
-* `PUT /api/orders/:id/status` — Update order status (**Admin only**)
+- `POST /api/orders` — Place order (transactional)
+- `GET /api/orders` — Get my orders
+- `PUT /api/orders/:id/cancel` — Cancel order (rules apply)
+- `PUT /api/orders/:id/status` — Update order status (**Admin only**, transition-validated)
 
 ---
 
 ## Testing
 
-This repo includes minimal integration tests (Jest + Supertest) that validate:
+Includes integration tests for core backend guarantees:
 
 1. Auth (register/login)
 2. RBAC (admin-only product creation)
-3. Transactional checkout (cart → order → stock decrement)
+3. Transactional checkout (cart → order → stock decrement → cart clear)
 
-Run:
+Run tests:
 
 ```bash
 npm test
 ```
 
-Manual testing notes:
+More details:
 
-* `docs/TESTING.md`
+- `docs/TESTING.md`
 
 ---
 

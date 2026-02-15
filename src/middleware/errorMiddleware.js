@@ -1,7 +1,9 @@
 const ApiError = require('../utils/apiError');
 
 const handleCastErrorDB = (err) => {
-  return new ApiError(400, `Invalid ${err.path}: ${err.value}`);
+  const path = err.path || 'field';
+  const value = err.value;
+  return new ApiError(400, `Invalid ${path}: ${value}`);
 };
 
 const handleDuplicateFieldsDB = (err) => {
@@ -18,36 +20,46 @@ const handleJWTError = () => new ApiError(401, 'Invalid token. Please log in aga
 const handleJWTExpired = () => new ApiError(401, 'Your token has expired. Please log in again.');
 
 const errorHandler = (err, req, res, next) => {
-  let error = err;
+  // Normalize unknown throws (string/object/etc.)
+  let error =
+    err instanceof Error
+      ? err
+      : new ApiError(500, typeof err === 'string' ? err : 'Something went wrong');
 
-  // Normalize mongoose + jwt errors
+  // Map common DB/Auth errors to operational ApiError
   if (error.name === 'CastError') error = handleCastErrorDB(error);
   if (error.code === 11000) error = handleDuplicateFieldsDB(error);
   if (error.name === 'ValidationError') error = handleValidationErrorDB(error);
   if (error.name === 'JsonWebTokenError') error = handleJWTError();
   if (error.name === 'TokenExpiredError') error = handleJWTExpired();
 
-  error.statusCode = error.statusCode || 500;
-  error.status = error.status || 'error';
+  const statusCode = error.statusCode || 500;
+  const status = error.status || (String(statusCode).startsWith('4') ? 'fail' : 'error');
+  const isDevOrTest = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
 
-  // Show stack traces in development AND test
-  if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
-    return res.status(error.statusCode).json({
-      status: error.status,
+  if (isDevOrTest) {
+    return res.status(statusCode).json({
+      status,
       message: error.message,
       name: error.name,
-      error,
       stack: error.stack
     });
   }
 
-  // Production: do not leak internals
+  // Production behavior
   if (error.isOperational) {
-    return res.status(error.statusCode).json({
-      status: error.status,
+    return res.status(statusCode).json({
+      status,
       message: error.message
     });
   }
+
+  // Log unknown/internal errors server-side only
+  console.error('UNEXPECTED_ERROR:', {
+    name: error.name,
+    message: error.message,
+    stack: error.stack
+  });
 
   return res.status(500).json({
     status: 'error',
